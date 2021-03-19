@@ -1,0 +1,33 @@
+{
+  "name": "MyGitHubSite",
+  "version": "0.0.1",
+  "description": "My Github Site",
+  "main": "index.js",
+  "authors": {
+    "name": "Cold Elm Coders",
+    "email": "me@you.com"
+  },
+  "directories": {
+    "site": "site",
+    "posts": "posts",
+    "articles": "articles",
+    "images": "images"
+  },
+  "repository": "/My-GitHub-Site",
+  "scripts": {
+    "site:build": "vuepress build site",
+    "dev": "vuepress dev site",
+    "build": "vuepress build site"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@vuepress/plugin-back-to-top": "^1.8.2",
+    "@vuepress/plugin-medium-zoom": "^1.8.2",
+    "vuepress": "^1.8.2"
+  },
+  "dependencies": {
+    "moment": "^2.29.1",
+    "package": "^1.0.1",
+    "yaml-front-matter": "^4.1.1"
+  }
+}
