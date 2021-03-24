@@ -1,6 +1,9 @@
 ﻿---
-title: Working with CSS in Blazor
+title: CSS in Blazor
+oneliner: Working with CSS in Blazor
+precis: This article describes how to customize the default CSS setup in Blazor, and looks at the new Scoped CSS.
 date: 2020-10-01
+published: 2020-10-01
 ---
 
 # Working with CSS in Blazor
@@ -31,7 +34,7 @@ The code is avalable at [Blazor.CSS](https://github.com/ShaunCurtis/Blazor.CSS) 
 4. Right mouse click on the file > Web Compiler > Compile File.
 5. This will add a *compilerconfig.json* file to the project.  This is the configuration file for **Web Compiler**.
 
-    *compilerconfig.json* will look like this:
+*compilerconfig.json* will look like this:
 ```json
 [
   {

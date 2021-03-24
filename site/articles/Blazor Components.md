@@ -1,12 +1,16 @@
 ---
 title: A Deep Dive into Blazor Components
+oneliner: A Detailed Examination of the Blazor Component.
+precis: This article take a detailed look at the anatomy of a component and how it interacts with the rendering process.
 date: 2020-12-18
+published: 2020-11-11
 ---
 
 # A Deep Dive into Blazor Components
 
 > The Blazor UI is built using components. We will look at the anatomy of a component, its life cycle and how Blazor uses and manages components in building and running the UI. This article covers components in Blazor Server and Blazer WASM.
-> 
+
+ 
 The Blazor UI consists of a set of components organised in a component tree.  In this article we'll look at the anatomy of a component, it's life cycle and how Blazor manages the component tree. 
 
 Before diving into components, we need to understand where they fit in to the Blazor framework.

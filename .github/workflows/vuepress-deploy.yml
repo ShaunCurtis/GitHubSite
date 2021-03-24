@@ -14,5 +14,5 @@ jobs:
         TARGET_REPO: ShaunCurtis/ShaunCurtis.github.io
         TARGET_BRANCH: master
         BUILD_SCRIPT: yarn && yarn build
-        BUILD_DIR: blog/.vuepress/dist/
+        BUILD_DIR: site/.vuepress/dist/
           echo test, and deploy your project.
