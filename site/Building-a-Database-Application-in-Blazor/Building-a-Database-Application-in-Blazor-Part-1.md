@@ -88,14 +88,14 @@ RouteViews are the components loaded into the root `App` component, normally by 
 
 In the WASM application the `Counter` view is declared as shown below.  Very minimalist, because we want to share the actual counter code between the applications, so it becomes a *Form* in the shared library.  It just contains the route declaration and the top level form component.
 
-```razor
+```html
 @page "/counter"
 <CounterComponent></CounterComponent>
 ``` 
 
 The purpose of the RouteView is to declare routes that the `Router` component can find when the SPA starts.  The root component `App` is shown below which declares the `Router` component.  `AppAssembly="@typeof(WASMApp).Assembly"` points the router to the assembly it browses to find route declarations.  In this case it's pointed to assembly containing the root component.
 
-```razor
+```html
 <Router AppAssembly="@typeof(WASMApp).Assembly" PreferExactMatches="@true">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(WASMLayout)" />
