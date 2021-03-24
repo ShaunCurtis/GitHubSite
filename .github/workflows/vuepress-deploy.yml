@@ -15,4 +15,3 @@ jobs:
         TARGET_BRANCH: master
         BUILD_SCRIPT: yarn && yarn build
         BUILD_DIR: site/.vuepress/dist/
-          echo test, and deploy your project.
