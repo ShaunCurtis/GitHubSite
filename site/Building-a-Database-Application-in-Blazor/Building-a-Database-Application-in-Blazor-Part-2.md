@@ -1,11 +1,16 @@
 ---
-title: Part 2 - Services - Building the CRUD Data Layers
+title: Building the Services
+oneliner: This article describes building the CRUDL data services for a Blazor Database Application.
+precis: This article describes how to build the CRUDL data services for a Blazor Database Application.
 date: 2021-03-15
-precis: An article on how to build a simple custom Blazor validation control
 published: 2020-07-01
 ---
 
 # Part 2 - Services - Building the CRUD Data Layers
+
+::: danger
+This article and all the others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
+:::
 
 This article is the second in a series on Building a Blazor Database Projects.  It describes techniques and methodologies for abstracting the data and business logic layers into boilerplate library code.  It is a total rewrite from earlier releases.
 

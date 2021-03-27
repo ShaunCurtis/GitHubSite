@@ -5,6 +5,10 @@ date: 2020-10-06
 
 # Part 6 - Adding new Record Types and Their UI to the Weather Application
 
+::: danger
+This article and all the others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
+:::
+
 This is the sixth article in the series and walks through adding new records to the Weather Application.  The articles so far are:
 
 1. Project Structure and Framework.

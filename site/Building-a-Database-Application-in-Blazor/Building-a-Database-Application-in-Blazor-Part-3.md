@@ -5,6 +5,10 @@ date: 2020-10-03
 
 # Part 3 - View Components - CRUD Edit and View Operations in the UI
 
+::: danger
+This article and all the others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
+:::
+
 ## Introduction
 
 This is the third in a series of articles looking at how to build and structure a real Database Application in Blazor. The articles so far are:
