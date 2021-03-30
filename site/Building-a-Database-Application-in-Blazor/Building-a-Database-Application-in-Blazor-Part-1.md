@@ -15,7 +15,7 @@ This article and all the others in this series is a building site.  Total revamp
 
 This set of articles describes a framework for building and structuring Database Applications in Blazor.
 
-It is **A** framework, not **THE** framework.  I make no recommendations, use it or abuse it.  I've used it on my last two projects, an Animal Feeds tracking and Delivery/Invoicing system and a Club Membership system.  The framework is lightly opinionated: it uses out-of-the-box Blazor/Razor/DotNetCore systems and toolkits and lightly modified BootStrap. 
+It is **A** framework, not **THE** framework.  I make no recommendations, use it or abuse it.  It's what I current use on my projects.  It's lightly opinionated: it uses out-of-the-box Blazor/Razor/DotNetCore systems and toolkits whereever possible and a lightly modified BootStrap CSS framework. 
  
 There are 6 articles:
 
@@ -24,11 +24,11 @@ There are 6 articles:
 3. View Components - CRUD Edit and View Operations in the UI.
 4. UI Components - Building HTML/CSS Controls.
 5. View Components - CRUD List Operations in the UI.
-6. A walk through detailing how to add weather stations and weather station data to the application.
+6. A walk through detailing how to add records to the application -  weather stations and weather station data.
 
 The articles have changed drastically from their original release:
 
-1. The whole framework is significantly less opinionated.  I've moved back from some of the more radical approaches I was advocating.
+1. The whole framework is less opinionated.  I've dropped the more radical approaches I used as I've developed solutions using the current framework.
 2. The libraries have major code updates, particularly in the Data Services.
 2. Everything has been updated to Net5.
 3. The Repo home has moved.
@@ -42,28 +42,24 @@ This first articles proves an overview and a study of the Framework.
 
 ## Repository and Database
 
-The repository for the articles has moved to [CEC.Blazor.SPA Repository](https://github.com/ShaunCurtis/CEC.Blazor.SPA).  [CEC.Blazor GitHub Repository](https://github.com/ShaunCurtis/CEC.Blazor) is now obselete and will be removed.
+The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  [CEC.Blazor GitHub Repository](https://github.com/ShaunCurtis/CEC.Blazor) is now obselete and will be removed.
 
 There's a SQL script in /SQL in the repository for building the database.
 
-The Server and WASM versions of the site have been combined into a single site.  You can switch between the two in the left hand menu.  The site starts in Server mode - [https://cec-blazor-server.azurewebsites.net/](https://cec-blazor-server.azurewebsites.net/).  The WASM server site exists for bebugging WASM code only.
-
-Serveral classes described here are part of the separate *CEC.Blazor.Core* library.  The Github is [here](https://github.com/ShaunCurtis/CEC.Blazor.Core), and is available as a Nuget Package.
+The Server and WASM versions of the site have been combined into a single site.  You can switch between the two in the left hand menu.  The site starts in Server mode - [https://cec-blazor-server.azurewebsites.net/](https://cec-blazor-server.azurewebsites.net/).
 
 ## Design Philosophy
 
 ### Data
 
-The data side of the project is structured fairly conventionally, loosely based on the three tier - data, logical and presentation layer - model.
-
-The data layers implement standard CRUDL - Create/Read/Update/Delete/List - actions against database entities.
+The data side of the project is structured loosely on the three tier - data, logical and presentation layer - model.  The data layers implement standard CRUDL - Create/Read/Update/Delete/List - actions against database entities.
 
 The application library contains two `DbContext` classes:
 
 1. `LocalWeatherDbContext` uses a standard SQL database with a connection string defined in `AppSettings`.
 2. `InMemoryWeatherDbContext` uses an In-Memory SQLite database for testing and demo purposes.
 
-Services for `DbContext` classes are created using `AddDBContextFactory` and injected into or captured by consuming classes through the `IDbContextFactory<TDbContext>` interface.
+The `DbContext` services are created through a DBContextFactory implemented on services as `AddDBContextFactory`.  The services are comsumed through it's `IDbContextFactory<TDbContext>` interface.
 
 The base data layer is defined by a `IFactoryDataService` interface.  `FactoryDataService` is an abstract level implementation of `IFactoryDataService`.  There are three data services that implement most of the boilerplate code:
 

@@ -1,5 +1,6 @@
 ---
 title: DotNetCore XML/XSD Serialization
+precis: A quick method to Deserialize Data with a XSD definition
 date: 2020-10-01
 ---
 
