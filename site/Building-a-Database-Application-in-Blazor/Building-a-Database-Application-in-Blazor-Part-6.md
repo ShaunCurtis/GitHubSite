@@ -42,11 +42,12 @@ The repository for the articles has moved to [CEC.Blazor.SPA Repository](https:/
 
 ## Overview of the Process
 
-1. Add the Tables, Views and Stored Procedures to the Database
-2. Add the Models, Services and Forms to the CEC.Weather Library
-3. Add the Views and configure the Services in the Blazor.CEC.Server project.
-4. Add the Views and configure the Services in the Blazor.CEC.WASM.Client project.
-5. Add the Controllers and configure the Services in the Blazor.CEC.WASM.Server project.
+1. Add the Tables to the Database.
+2. Add the DbContext, Data Classes and Controller Services and Forms to the Blazor.Database Library
+3. Add the Forms and View Components to the Blazor.Database Library
+4. Add the RouteViews and configure the Services in the Blazor.Database.Server project.
+6. Add the RouteViews and configure the Services in the Blazor.Database.WASM project.
+7. Add the Controllers and configure the Services in the Blazor.Database.Web project.
 
 ## Database
 

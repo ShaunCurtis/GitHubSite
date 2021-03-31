@@ -359,7 +359,7 @@ the `IFactoryDataService` defines the base CRUDL methods all DataServices must i
 public interface IFactoryDataService 
 {
     public Task<List<TRecord>> GetRecordListAsync<TRecord>() where TRecord : class, IDbRecord<TRecord>, new();
-    public Task<List<TRecord>> GetRecordListAsync<TRecord>(int page, int pagesize) where TRecord : class, IDbRecord<TRecord>, new();
+    public Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator) where TRecord : class, IDbRecord<TRecord>, new();
     public Task<TRecord> GetRecordAsync<TRecord>(int id) where TRecord : class, IDbRecord<TRecord>, new();
     public Task<int> GetRecordListCountAsync<TRecord>() where TRecord : class, IDbRecord<TRecord>, new();
     public Task<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record) where TRecord : class, IDbRecord<TRecord>, new();
@@ -382,7 +382,7 @@ public abstract class FactoryDataService: IFactoryDataService
 
     public virtual Task<List<TRecord>> GetRecordListAsync<TRecord>() where TRecord : class, IDbRecord<TRecord>, new()
         => Task.FromResult(new List<TRecord>());
-    public virtual Task<List<TRecord>> GetRecordListAsync<TRecord>(int page, int pagesize) where TRecord : class, IDbRecord<TRecord>, new()
+    public virtual Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator) where TRecord : class, IDbRecord<TRecord>, new()
         => Task.FromResult(new List<TRecord>());
     public virtual Task<TRecord> GetRecordAsync<TRecord>(int id) where TRecord : class, IDbRecord<TRecord>, new()
         => Task.FromResult(new TRecord());
@@ -414,16 +414,32 @@ public class FactoryServerDataService<TDbContext> : FactoryDataService where TDb
             .GetDbSet<TRecord>()
             .ToListAsync() ?? new List<TRecord>();
 
-    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(int page, int pagesize)
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator)
     {
-        var startpage = page <= 1
+        var startpage = paginator.Page <= 1
             ? 0
-            : (page - 1) * pagesize;
+            : (paginator.Page - 1) * paginator.PageSize;
         var context = this.DBContext.CreateDbContext();
         var dbset = this.DBContext
             .CreateDbContext()
             .GetDbSet<TRecord>();
-        return await dbset.Skip(startpage).Take(pagesize).ToListAsync() ?? new List<TRecord>();
+        var x = typeof(TRecord).GetProperty(paginator.SortColumn);
+        var isSortable = typeof(TRecord).GetProperty(paginator.SortColumn) != null;
+        if (isSortable)
+        {
+            var list = await dbset
+                .OrderBy(paginator.SortDescending ? $"{paginator.SortColumn} descending" : paginator.SortColumn)
+                .Skip(startpage)
+                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+            return list;
+        }
+        else
+        {
+            var list = await dbset
+                .Skip(startpage)
+                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+            return list;
+        }
     }
 
     public override async Task<TRecord> GetRecordAsync<TRecord>(int id)
@@ -468,58 +484,56 @@ The structure is:
 UI Controller Service => WASMDataService => API Controller => ServerDataService => DBContext
 
 ```csharp
-    public class FactoryWASMDataService : FactoryDataService, IFactoryDataService
+public class FactoryWASMDataService : FactoryDataService, IFactoryDataService
+{
+    protected HttpClient HttpClient { get; set; }
+
+    public FactoryWASMDataService(IConfiguration configuration, HttpClient httpClient) : base(configuration)
+        => this.HttpClient = httpClient;
+
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>()
+        => await this.HttpClient.GetFromJsonAsync<List<TRecord>>($"{GetRecordName<TRecord>()}/list");
+
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator)
     {
-        protected HttpClient HttpClient { get; set; }
-
-        public FactoryWASMDataService(IConfiguration configuration, HttpClient httpClient) : base(configuration)
-            => this.HttpClient = httpClient;
-
-        public override async Task<List<TRecord>> GetRecordListAsync<TRecord>()
-            => await this.HttpClient.GetFromJsonAsync<List<TRecord>>($"{GetRecordName<TRecord>()}/list");
-
-        public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(int page, int pagesize)
-        {
-            var paging = new Paginator(page, pagesize);
-            var response = await this.HttpClient.PostAsJsonAsync($"{GetRecordName<TRecord>()}/listpaged", paging);
-            var result = await response.Content.ReadFromJsonAsync<List<TRecord>>();
-            return result;
-        }
-
-        public override async Task<TRecord> GetRecordAsync<TRecord>(int id)
-        {
-            var response = await this.HttpClient.PostAsJsonAsync($"{GetRecordName<TRecord>()}/read", id);
-            var result = await response.Content.ReadFromJsonAsync<TRecord>();
-            return result;
-        }
-
-        public override async Task<int> GetRecordListCountAsync<TRecord>()
-            => await this.HttpClient.GetFromJsonAsync<int>($"{GetRecordName<TRecord>()}/count");
-
-        public override async Task<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record)
-        {
-            var response = await this.HttpClient.PostAsJsonAsync<TRecord>($"{GetRecordName<TRecord>()}/update", record);
-            var result = await response.Content.ReadFromJsonAsync<DbTaskResult>();
-            return result;
-        }
-
-        public override async Task<DbTaskResult> CreateRecordAsync<TRecord>(TRecord record)
-        {
-            var response = await this.HttpClient.PostAsJsonAsync<TRecord>($"{GetRecordName<TRecord>()}/create", record);
-            var result = await response.Content.ReadFromJsonAsync<DbTaskResult>();
-            return result;
-        }
-
-        public override async Task<DbTaskResult> DeleteRecordAsync<TRecord>(TRecord record)
-        {
-            var response = await this.HttpClient.PostAsJsonAsync<TRecord>($"{GetRecordName<TRecord>()}/update", record);
-            var result = await response.Content.ReadFromJsonAsync<DbTaskResult>();
-            return result;
-        }
-
-        protected string GetRecordName<TRecord>() where TRecord : class, IDbRecord<TRecord>, new()
-            => new TRecord().GetType().Name;
+        var response = await this.HttpClient.PostAsJsonAsync($"{GetRecordName<TRecord>()}/listpaged", paginator);
+        return await response.Content.ReadFromJsonAsync<List<TRecord>>();
     }
+
+    public override async Task<TRecord> GetRecordAsync<TRecord>(int id)
+    {
+        var response = await this.HttpClient.PostAsJsonAsync($"{GetRecordName<TRecord>()}/read", id);
+        var result = await response.Content.ReadFromJsonAsync<TRecord>();
+        return result;
+    }
+
+    public override async Task<int> GetRecordListCountAsync<TRecord>()
+        => await this.HttpClient.GetFromJsonAsync<int>($"{GetRecordName<TRecord>()}/count");
+
+    public override async Task<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record)
+    {
+        var response = await this.HttpClient.PostAsJsonAsync<TRecord>($"{GetRecordName<TRecord>()}/update", record);
+        var result = await response.Content.ReadFromJsonAsync<DbTaskResult>();
+        return result;
+    }
+
+    public override async Task<DbTaskResult> CreateRecordAsync<TRecord>(TRecord record)
+    {
+        var response = await this.HttpClient.PostAsJsonAsync<TRecord>($"{GetRecordName<TRecord>()}/create", record);
+        var result = await response.Content.ReadFromJsonAsync<DbTaskResult>();
+        return result;
+    }
+
+    public override async Task<DbTaskResult> DeleteRecordAsync<TRecord>(TRecord record)
+    {
+        var response = await this.HttpClient.PostAsJsonAsync<TRecord>($"{GetRecordName<TRecord>()}/update", record);
+        var result = await response.Content.ReadFromJsonAsync<DbTaskResult>();
+        return result;
+    }
+
+    protected string GetRecordName<TRecord>() where TRecord : class, IDbRecord<TRecord>, new()
+        => new TRecord().GetType().Name;
+}
 ```
 
 #### API Controllers
@@ -547,7 +561,7 @@ public class WeatherForecastController : ControllerBase
 
     [MVC.Route("weatherforecast/listpaged")]
     [HttpGet]
-    public async Task<List<WeatherForecast>> Read([FromBody] Paginator data) => await DataService.GetRecordListAsync<WeatherForecast>(page: data.Page, pagesize: data.PageSize);
+    public async Task<List<WeatherForecast>> Read([FromBody] Paginator data) => await DataService.GetRecordListAsync<WeatherForecast>( paginator: data);
 
     [MVC.Route("weatherforecast/count")]
     [HttpGet]
@@ -573,6 +587,90 @@ public class WeatherForecastController : ControllerBase
     [HttpPost]
     public async Task<DbTaskResult> Delete([FromBody] WeatherForecast record) => await DataService.DeleteRecordAsync<WeatherForecast>(record);
     }
+```
+#### FactoryServerInMemoryDataService
+
+For testing and demos there's a second Server data service thart uses the SQLite in-memory `DbContext`.
+
+The code is very similar to `FactoryServerDataService` but only uses a single `DbContext` for all transactions.
+
+```csharp
+public class FactoryServerInMemoryDataService<TDbContext> : FactoryDataService, IFactoryDataService where TDbContext : DbContext
+{
+    protected virtual IDbContextFactory<TDbContext> DBContext { get; set; } = null;
+
+    private DbContext _dbContext;
+
+    public FactoryServerInMemoryDataService(IConfiguration configuration, IDbContextFactory<TDbContext> dbContext) : base(configuration)
+    {
+        this.DBContext = dbContext;
+        _dbContext = this.DBContext.CreateDbContext();
+    }
+
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>()
+    {
+        var dbset = _dbContext.GetDbSet<TRecord>();
+        return await dbset.ToListAsync() ?? new List<TRecord>();
+    }
+
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator)
+    {
+        var startpage = paginator.Page <= 1
+            ? 0
+            : (paginator.Page - 1) * paginator.PageSize;
+        var dbset = _dbContext.GetDbSet<TRecord>();
+        var isSortable = typeof(TRecord).GetProperty(paginator.SortColumn) != null;
+        if (isSortable)
+        {
+            var list = await dbset
+                .OrderBy(paginator.SortDescending ? $"{paginator.SortColumn} descending" : paginator.SortColumn)
+                .Skip(startpage)
+                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+            return list;
+        }
+        else
+        {
+            var list = await dbset
+                .Skip(startpage)
+                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+            return list;
+        }
+    }
+
+    public override async Task<TRecord> GetRecordAsync<TRecord>(int id)
+    {
+        var dbset = _dbContext.GetDbSet<TRecord>();
+        return await dbset.FirstOrDefaultAsync(item => ((IDbRecord<TRecord>)item).ID == id) ?? default;
+    }
+
+    public override async Task<int> GetRecordListCountAsync<TRecord>()
+    {
+        var dbset = _dbContext.GetDbSet<TRecord>();
+        return await dbset.CountAsync();
+    }
+
+    public override async Task<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record)
+    {
+        _dbContext.Entry(record).State = EntityState.Modified;
+        var x = await _dbContext.SaveChangesAsync();
+        return new DbTaskResult() { IsOK = true, Type = MessageType.Success };
+    }
+
+    public override async Task<DbTaskResult> CreateRecordAsync<TRecord>(TRecord record)
+    {
+        var dbset = _dbContext.GetDbSet<TRecord>();
+        dbset.Add(record);
+        var x = await _dbContext.SaveChangesAsync();
+        return new DbTaskResult() { IsOK = true, Type = MessageType.Success, NewID = record.ID };
+    }
+
+    public override async Task<DbTaskResult> DeleteRecordAsync<TRecord>(TRecord record)
+    {
+        _dbContext.Entry(record).State = EntityState.Deleted;
+        var x = await _dbContext.SaveChangesAsync();
+        return new DbTaskResult() { IsOK = true, Type = MessageType.Success };
+    }
+}
 ```
 
 ### Controller Services
@@ -699,7 +797,7 @@ public abstract class FactoryControllerService<TRecord> : IDisposable, IFactoryC
     /// Method to get a recordset
     public async Task GetRecordsAsync()
     {
-        this.Records = await DataService.GetRecordListAsync<TRecord>(this.Paginator.Page, this.Paginator.PageSize);
+        this.Records = await DataService.GetRecordListAsync<TRecord>(this.Paginator);
         this.Paginator.RecordCount = await GetRecordListCountAsync();
         this.ListHasChanged?.Invoke(null, EventArgs.Empty);
     }

@@ -15,7 +15,7 @@ This article and all the others in this series is a building site.  Total revamp
 
 ## Introduction
 
-This article is the fourth in a series on Building Blazor Database Applications. The articles so far are:
+This article is the fifth in a series on Building Blazor Database Applications. The articles so far are:
 
 1. Project Structure and Framework.
 2. Services - Building the CRUD Data Layers.
@@ -24,31 +24,30 @@ This article is the fourth in a series on Building Blazor Database Applications.
 5. View Components - CRUD List Operations in the UI.
 6. A walk through detailing how to add weather stations and weather station data to the application.
 
-This article looks in detail at building reusable List Presentation Layer components and deploying them in both Server and WASM projects.
+This article looks in detail at building reusable List UI components and deploying them in both Server and WASM projects.
 
 ## Repository and Database
 
-The repository for the articles has move to [CEC.Blazor.SPA Repository](https://github.com/ShaunCurtis/CEC.Blazor.SPA).  [CEC.Blazor GitHub Repository](https://github.com/ShaunCurtis/CEC.Blazor) is obselete and will be removed.
+The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  The older repositories are now obselete and will be removed soon.
 
 There's a SQL script in /SQL in the repository for building the database.
 
-[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-server.azurewebsites.net/).
-
-Serveral classes described here are part of the separate *CEC.Blazor.Core* library.  The Github is [here](https://github.com/ShaunCurtis/CEC.Blazor.Core), and is available as a Nuget Package.
+[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
 
 ## List Functionality
 
-List components present more challenges than other CRUD components.  Functionality expected in a professional level list control includes:
-* Paging to handle large data sets
-* Column formatting to control column width and data overflow
-* Sorting on individual columns
+List components present more challenges than other CRUD components.  Functionality expected in a production level list control includes:
+* Paging -  to handle large data sets
+* Column formatting - to control column width and data overflow
+* Sorting - on columns
 * Filtering - not covered here.
 
 
 ## The Base Forms
 
-`ListFormBase` is the base form for all lists. It inherits from `ComponentBase`.
+`ListFormBase` is the base abstract form for all lists. It inherits from `ComponentBase`, and contains all the boilerplate code.  `TRecord` is the dataclass it operates on.  The form uses the 
 
+The code is shown below
 ```csharp
     public abstract class ListFormBase<TRecord> : ComponentBase, IDisposable where TRecord : class, IDbRecord<TRecord>, new()
     {
@@ -100,13 +99,41 @@ List components present more challenges than other CRUD components.  Functionali
     }
 ```
 
-### Paging
+### Paging and Sorting
 
-Paging is implemented through a `Paginator` class and a `PaginatorControl` component.  
+Paging and sorting is implemented by a `Paginator` class that resides in the ControllerService.  There are UI components that interact with the `Paginstor`: `PaginatorControl` and `SortControl`.
+
+You can see `PaginatorControl` in use in a list form - here in the left side of a button row at the bottom of the form
+
+```csharp
+<UIContainer>
+    <UIFormRow>
+        <UIColumn Cols="8">
+            <PaginatorControl Paginator="this.Service.Paginator"></PaginatorControl>
+        </UIColumn>
+        <UIButtonColumn Cols="4">
+            <UIButton Show="true" AdditionalClasses="btn-success" ClickEvent="() => this.New()">New Record</UIButton>
+            <UIButton AdditionalClasses="btn-secondary" ClickEvent="this.Exit">Exit</UIButton>
+        </UIButtonColumn>
+    </UIFormRow>
+</UIContainer>
+```
+
+And `SortControl` in action in the header row of a list form.
+  
+```csharp
+<head>
+    <SortControl Paginator="this.Service.Paginator">
+        <UIDataTableHeaderColumn SortField="ID">ID</UIDataTableHeaderColumn>
+        <UIDataTableHeaderColumn SortField="Date">Date</UIDataTableHeaderColumn>
+        ...
+    </SortControl>
+</head>
+```
 
 #### Paginator
 
-The Controller Service holds the `Paginator` instance used by the list form.  The code is self explanatory.
+The Controller Service holds the `Paginator` instance used by list forms.  The code is self explanatory, providing the functionality for paging operations.  It's passed to the Data Service to retrieve the correct sorted page.
 
 ```csharp
 public class Paginator
@@ -116,6 +143,14 @@ public class Paginator
     public int BlockSize { get; set; } = 10;
     public int RecordCount { get; set; } = 0;
     public event EventHandler PageChanged;
+    public string SortColumn
+    {
+        get => (!string.IsNullOrWhiteSpace(_sortColumn)) ? _sortColumn : DefaultSortColumn;
+        set => _sortColumn = value;
+    }
+    private string _sortColumn = string.Empty;
+    public string DefaultSortColumn { get; set; } = "ID";
+    public bool SortDescending { get; set; }
 
     public int LastPage => (int)((RecordCount / PageSize) + 0.5);
     public int LastBlock => (int)((LastPage / BlockSize) + 1.5);
@@ -125,20 +160,22 @@ public class Paginator
     public bool HasBlocks => ((RecordCount / (PageSize * BlockSize)) + 0.5) > 1;
     public bool HasPagination => (RecordCount / PageSize) > 1;
 
+
     public Paginator(int pageSize, int blockSize)
     {
         this.BlockSize = blockSize;
         this.PageSize = pageSize;
     }
 
-    public void ToPage(int page)
+    public void ToPage(int page, bool forceUpdate = false)
     {
-        if (!this.Page.Equals(page))
+        if ((forceUpdate | !this.Page.Equals(page)) && page > 0)
         {
             this.Page = page;
             this.PageChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
     public void NextPage()
         => this.ToPage(this.Page + 1);
 
@@ -167,11 +204,15 @@ public class Paginator
             this.PageChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    public void NotifySortingChanged()
+        => this.ToPage(1, true);
 }
 ```
 #### PaginatorControl
 
-The code again is self-explanatory, building out a Bootstrap ButtonGroup.
+The code again is self-explanatory, building out a Bootstrap ButtonGroup.  I've kept away from using icons, you can if you wish.
+
 ```html
 @namespace Blazor.SPA.Components
 
@@ -227,6 +268,108 @@ The code again is self-explanatory, building out a Bootstrap ButtonGroup.
 }
 ```
 
+#### SortControl
+
+The `SortControl` is used in a list header. It cascades itself and provides the interface into the Paginator for the header columns through a set of public helper methods.
+
+```csharp
+@namespace Blazor.SPA.Components
+
+<CascadingValue Value="this">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string NotSortedClass { get; set; } = "sort-column oi oi-resize-height";
+    [Parameter] public string AscendingClass { get; set; } = "sort-column oi oi-sort-ascending";
+    [Parameter] public string DescendingClass { get; set; } = "sort-column oi oi-sort-descending";
+    [Parameter] public EventCallback<SortingEventArgs> Sort { get; set; }
+    [Parameter] public Paginator Paginator { get; set; }
+    public string SortColumm { get; private set; } = string.Empty;
+    public bool Descending { get; private set; } = false;
+
+    public string GetIcon(string columnName)
+        => !this.SortColumm.Equals(columnName)
+        ? this.NotSortedClass
+        : this.Descending
+            ? this.AscendingClass
+            : this.DescendingClass;
+
+    public void NotifySortingChanged(string sortColumn, bool descending = false)
+    {
+        this.SortColumm = sortColumn;
+        this.Descending = descending;
+        this.Notify();
+    }
+
+    public void NotifySortingDirectionChanged()
+    {
+        this.Descending = !this.Descending;
+        this.Notify();
+    }
+
+    private void Notify()
+    {
+        if (Paginator != null)
+            {
+            Paginator.SortDescending = this.Descending;
+            Paginator.SortColumn = this.SortColumm;
+            Paginator.NotifySortingChanged();
+            }
+        var args = SortingEventArgs.Get(this.SortColumm, this.Descending);
+        if (Sort.HasDelegate) this.Sort.InvokeAsync(args);
+    }
+}
+```
+
+#### UIDataTableHeaderColumn
+
+
+This is the UI control that builds out each header column in a list.  It builds out the razor and Css class for the header and notifies the captured  SortControl on any mouse click events.
+```csharp
+@namespace Blazor.SPA.Components
+
+@if (_isSortField)
+{
+    <th class="@this.CssClass" @attributes="UserAttributes" @onclick="SortClick">
+        <span class="@_iconclass"></span>
+        @this.ChildContent
+    </th>
+}
+else
+{
+    <th class="@this.CssClass" @attributes="UserAttributes">
+        @this.ChildContent
+    </th>
+}
+
+@code {
+
+    [CascadingParameter] public SortControl SortControl { get; set; }
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string SortField { get; set; } = string.Empty;
+    [Parameter(CaptureUnmatchedValues = true)] public IDictionary<string, object> UserAttributes { get; set; } = new Dictionary<string, object>();
+    private bool _hasSortControl => this.SortControl != null;
+    private bool _isSortField => !string.IsNullOrWhiteSpace(this.SortField);
+    private string _iconclass => _hasSortControl && _isSortField ? this.SortControl.GetIcon(SortField) : string.Empty;
+
+    private string CssClass => CSSBuilder.Class("grid-col")
+        .AddClass("cursor-hand", _isSortField)
+        .AddClassFromAttributes(this.UserAttributes)
+        .Build();
+
+    private void SortClick(MouseEventArgs e)
+    {
+        if (this.SortControl.SortColumm.Equals(this.SortField))
+            this.SortControl.NotifySortingDirectionChanged();
+        else
+            this.SortControl.NotifySortingChanged(this.SortField);
+    }
+}
+```
+
+
 ### Weather Forecast List Forms
 
 There are three list forms in the solution.  They demonstrate different UI approaches.
@@ -235,23 +378,63 @@ There are three list forms in the solution.  They demonstrate different UI appro
 2. The modal dialog approach - opening and closing modal dialogs within the list RouteView.
 3. The inline dialog approach - opening and closing a section within the RouteView to display/edit the record.
 
-The standard `WeatherForecastListForm` looks like this.  It inherits from `ListFormBase` with `WeatherForecast` as `TRecord`.  It assigns the `WeatherForecastControllerService` to the base `IFactoryControllerService` property `Service`.
+The standard `WeatherForecastListForm` looks like this.  It inherits from `ListFormBase` with `WeatherForecast` as `TRecord`.  It assigns the `WeatherForecastControllerService` to the base `IFactoryControllerService` property `Service`.  Note it has a component Css file defining the custom Css used in the component.
 
 ```csharp
 // Blazor.Database/Components/Forms/WeatherForecast/WeatherForecastListForm.razor.cs
 public partial class WeatherForecastListForm : ListFormBase<WeatherForecast>
 {
     [Inject] private WeatherForecastControllerService ControllerService { get; set; }
+    [Parameter] public bool IsModal {get; set;}
+    private BaseModalDialog Modal { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         this.Service = this.ControllerService;
         await base.OnInitializedAsync();
     }
+
+    protected override async void Edit(int id)
+    {
+        if (this.IsModal)
+        {
+            var options = new ModalOptions();
+            options.Set("Id", id);
+            await this.Modal.ShowAsync<WeatherForecastEditorForm>(options);
+        }
+        else
+            base.Edit(id);
+    }
+    protected override async void View(int id)
+    {
+        if (this.IsModal)
+        {
+            var options = new ModalOptions();
+            options.Set("Id", id);
+            await this.Modal.ShowAsync<WeatherForecastViewerForm>(options);
+        }
+        else
+            base.View(id);
+    }
+
+    protected override async void New()
+    {
+        if (this.IsModal)
+        {
+            var options = new ModalOptions();
+            options.Set("Id", -1);
+            await this.Modal.ShowAsync<WeatherForecastEditorForm>(options);
+        }
+        else
+            base.New();
+    }
 }
 ```
 
-The razor markup.  Note the `PaginatorControl` in the botton button row linked to the `Service.Paginator`.  Paging is event driven.  `PaginatorControl` paging requests are handled directly by `Paginator` in the controller service.  Updates trigger a `ListChanged` event in the service which triggers a UI update in the List Form.
+The razor markup.  Note:
+1. The `SortControl` in the header and the `UIDataTableHeaderColumn` components building the header with the sortable columns.
+2. The `PaginatorControl` in the botton button row linked to the `Service.Paginator`.  Paging is event driven.  `PaginatorControl` paging requests are handled directly by `Paginator` in the controller service.  Updates trigger a `ListChanged` event in the service which triggers a UI update in the List Form.
+3. The `BaseModalDialog` added if the Form is using Modal Dialogs.
 
 ```html
 @namespace Blazor.Database.Components
@@ -262,13 +445,15 @@ The razor markup.  Note the `PaginatorControl` in the botton button row linked t
 <UILoader Loaded="this.IsLoaded">
     <UIDataTable TRecord="WeatherForecast" Records="this.ControllerService.Records" class="table">
         <Head>
-            <UIDataTableHeaderColumn>ID</UIDataTableHeaderColumn>
-            <UIDataTableHeaderColumn>Date</UIDataTableHeaderColumn>
-            <UIDataTableHeaderColumn>Temp. (C)</UIDataTableHeaderColumn>
-            <UIDataTableHeaderColumn>Temp. (F)</UIDataTableHeaderColumn>
-            <UIDataTableHeaderColumn>Summary</UIDataTableHeaderColumn>
-            <UIDataTableHeaderColumn class="max-column">Description</UIDataTableHeaderColumn>
-            <UIDataTableHeaderColumn class="text-right">Actions</UIDataTableHeaderColumn>
+            <SortControl Paginator="this.Service.Paginator">
+                <UIDataTableHeaderColumn SortField="ID">ID</UIDataTableHeaderColumn>
+                <UIDataTableHeaderColumn SortField="Date">Date</UIDataTableHeaderColumn>
+                <UIDataTableHeaderColumn SortField="TemperatureC">Temp. (C)</UIDataTableHeaderColumn>
+                <UIDataTableHeaderColumn>Temp. (F)</UIDataTableHeaderColumn>
+                <UIDataTableHeaderColumn SortField="Summary">Summary</UIDataTableHeaderColumn>
+                <UIDataTableHeaderColumn class="max-column">Description</UIDataTableHeaderColumn>
+                <UIDataTableHeaderColumn class="text-right">Actions</UIDataTableHeaderColumn>
+            </SortControl>
         </Head>
         <RowTemplate>
             <UIDataTableRow>
@@ -297,60 +482,11 @@ The razor markup.  Note the `PaginatorControl` in the botton button row linked t
         </UIFormRow>
     </UIContainer>
 </UILoader>
-```
-
-`WeatherForecastListModalForm` is a little different. It has a Modal Dialog control and overrides the default Edit/View/New event handlers to open the Editor/Viewer forms in the modal dialog.  Note:
-1. The `Id` passed in `ModalOptions`.
-2. The modal dialog returning a `Task` that can be waited on until the modal dialog closes.
-3. 
-
-```csharp
-// Blazor.Database/Components/Forms/WeatherForecast/WeatherForecastListModalForm.razor.cs
-public partial class WeatherForecastListModalForm : ListFormBase<WeatherForecast>
+@if (this.IsModal)
 {
-    [Inject] private WeatherForecastControllerService ControllerService { get; set; }
-
-    private BaseModalDialog Modal { get; set; }
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (this.HasService)
-        {
-            await this.ControllerService.GetRecordsAsync();
-            this.ControllerService.ListHasChanged += OnListChanged;
-        }
-    }
-
-    protected override async void Edit(int id)
-    {
-        var options = new ModalOptions();
-        options.Set("Id", id);
-        await this.Modal.ShowAsync<WeatherForecastEditorForm>(options);
-    }
-
-    protected override async void View(int id)
-    {
-        var options = new ModalOptions();
-        options.Set("Id", id);
-        await this.Modal.ShowAsync<WeatherForecastViewerForm>(options);
-    }
-
-    protected override async void New()
-    {
-        var options = new ModalOptions();
-        options.Set("Id", -1);
-        await this.Modal.ShowAsync<WeatherForecastEditorForm>(options);
-    }
+    <BaseModalDialog @ref="this.Modal"></BaseModalDialog>
 }
 ```
-
-The razor markup only differs in declaring a `BaseModalDialog` component.
-```html
-<UILoader Loaded="this.IsLoaded">
-    .....
-    <BaseModalDialog @ref="this.Modal"></BaseModalDialog>
-</UILoader>
-``` 
 
 ### The Views
 
@@ -385,12 +521,12 @@ This is the multi RouteView implementation.  Event handlers are hooked up `Weath
 
 }
 ```
-The modal implementation is simple.  It already handles editor/viewer state though the modal dialogs.  You don't really need it as you could declare `WeatherForecastListModalForm` directly in the RouteView.
+The modal implementation is simple.  It already handles editor/viewer state by enabling `IsModal`.  You don't really need it as you could declare `WeatherForecastListForm` directly in the RouteView.
 
 ```html
 @namespace Blazor.Database.Components
 
-<WeatherForecastListModalForm></WeatherForecastListModalForm>
+<WeatherForecastListForm IsModal="true"></WeatherForecastListForm>
 ```
 
 The inline dialog is the most complex.  It uses Ids to show/hide the Editor/Viewer through `UIBase`.
@@ -442,17 +578,38 @@ The inline dialog is the most complex.  It uses Ids to show/hide the Editor/View
 }
 ```
 
+### The RouteViews (aka Pages)
 
+These simply declare routes and the top level form component.
+
+ - Blazor.Database.WASM/RouteViews/Weather/xxx.razor
+ - Blazor.Database.Server/RouteViews/Weather/xxx.razor
+
+```html
+@page "/fetchdata"
+<WeatherForecastComponent></WeatherForecastComponent>
+```
+
+```html
+@page "/fetchdataInline"
+<WeatherForecastInlineComponent></WeatherForecastInlineComponent>
+```
+
+```html
+@page "/fetchdataModal"
+<WeatherForecastListModal></WeatherForecastListModal>
+```
 
 
 ## Wrap Up
 That wraps up this article.  Some key points to note:
-1. There's no differences in code between a Blazor Server and a Blazor WASM.
-2. Almost all functionality is implemented in the library components.  Most of the application code is Razor markup for the individual record fields.
-3. Async functionality is used throughout the components and CRUD data access.
+1. There's no differences between the Blazor Server and Blazor WASM code base.
+2. 90% plus functionality is implemented in the library components as boilerplate generic code.  Most of the application code is Razor markup for the individual record forms.
+3. Async functionality is used throughout.
+
     
 ## History
 
 * 25-Sep-2020: Initial version.
 * 17-Nov-2020: Major Blazor.CEC library changes.  Change to ViewManager from Router and new Component base implementation.
-* 7-Feb-2021: Major updates to Services, project structure and data editing.
+* 31-Mar-2021: Major updates to Services, project structure and data editing.
