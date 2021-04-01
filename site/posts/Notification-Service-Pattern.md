@@ -199,7 +199,7 @@ Finally we have a razor display page
     private void NewRandomNumber()
         => RdmService.NewNumber();
 
-    private int InitRun = 0;
+    private int InitRun = 0;    
     private int ParamsSetRun = 0;
     private int Rendered = 1;
 

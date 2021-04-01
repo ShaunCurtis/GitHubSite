@@ -1,7 +1,7 @@
 ﻿---
-title: Part 3 - View Components - CRUD Edit and View Operations in the UI
-oneliner: This article describes building the CRUDL data services for a Blazor Database Application.
-precis: This article describes how to build the CRUDL data services for a Blazor Database Application.
+title: Part 3 - Building Edit and View UI Components
+oneliner: This article describes building the Edit and View UI components for a Blazor Database Application.
+precis: This article describes building the Edit and View UI components for a Blazor Database Application.
 date: 2020-10-03
 published: 2020-10-03
 ---
@@ -14,7 +14,7 @@ This article and all the others in this series is a building site.  Total revamp
 
 ## Introduction
 
-This is the third in a series of articles looking at how to build and structure a real Database Application in Blazor. The articles so far are:
+This is the third in a series of articles looking at how to build and structure a Database Application in Blazor. The articles so far are:
 
 1. Project Structure and Framework.
 2. Services - Building the CRUD Data Layers.
@@ -25,15 +25,15 @@ This is the third in a series of articles looking at how to build and structure 
 
 This article looks in detail at building reusable CRUD presentation layer components, specifically Edit and View functionality - and using them in Server and WASM projects.  There are significant changes since the first release.
 
-I find it interesting that most programmers try and automate Edit And View forms by building a control line builder rather than boilerplating everything else. Most forms are unique to their record set.  Certain fields can be grouped together and put on the same line.  Text fields change in length depending on how many characters they need.  It also complicates the coding in the EditForm and the linkages bewteen the control, the dataclass instance and validation.  For those reasons there's no form builder here.
+I find it interesting that most programmers try and automate Edit And View forms by building a control line builder rather than boilerplating everything else. Most forms are unique to their record set.  Certain fields can be grouped together and put on the same line.  Text fields change in length depending on how many characters they need.  Builders complicate linkages between the control, the dataclass instance and validation.  For those reasons there's no form builder here, just a set of libary UI component classes to standardise form building.
 
 ## Sample Project, Code and Links
 
-The repository for the articles has moved to [CEC.Blazor.SPA Repository](https://github.com/ShaunCurtis/CEC.Blazor.SPA).  [CEC.Blazor GitHub Repository](https://github.com/ShaunCurtis/CEC.Blazor) is obselete and will be removed.
+The repository for the articles has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
 
-There's a SQL script in /SQL in the repository for building the database.
+There's a SQL script in /SQL in the repository for building the database.  The application can use either a real SQL database or an in-memory SQLite database.
 
-[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-server.azurewebsites.net/).
+[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
 
 Several custom controls are used in the forms for which there are separate articles:
 
@@ -44,47 +44,37 @@ Several custom controls are used in the forms for which there are separate artic
 
 ## The Base Forms
 
-All CRUD UI components inherit from `ComponentBase`.  All source files can be viewed on the Github site, and I include references or links to specific code files at appropriate places in the article.  Much of the information detail is in the comments in the code sections.
+All UI components inherit from `ComponentBase`.  All source files can be viewed on the Github site, and I include references or links to specific code files at appropriate places in the article.  In most places you need to read through the code for detailed commentary on functionality.
 
 ### RecordFormBase
 
-`RecordFormBase` inherits from `ComponentBase`.  Record forms can be created and exist in several contexts:
-1. As the root component in a RouteView, where the RouteView passes the form the `Id` of the record to display.
-2. In a modal dialog within a list or other component. 
-3. As an inline editor within another component such as a list.
+`RecordFormBase` is the base abstract class used by the record forms.  It inherits from `ComponentBase`.  Record forms can be created in several contexts.  In this application there are three:
+ 
+1. As the root component in a RouteView, where the RouteView passes the form the `Id` via a Parameter.
+2. In a modal dialog within a list or other component.  The ID is passed to the form through a `DialogOptions` class.  
+3. As an inline editor within another component such as a list, where the component passes the form the `Id` via a Parameter.
 
-The form detects if it's in a modal dialog context by checking by checking for a cascaded `IModalDialog` object.  The form has two dependancies.  
-1. The `Id` of the record.  This is either passed as a `Parameter` if the form is hosted in a RouteView or other component, or in a public `ModalOptions` property of `IModalDialog`.
-2. It's Exit mechanism.  This is either:
+`RecordFormBase` is designed to detect it's context, specifically the modal dialog context by checking by checking for a cascaded `IModalDialog` object.  There are two sets of dependancies:  
+1. The `Id` of the record.  This is either passed as a `Parameter` if the form is hosted in a RouteView or other component, or in a public `ModalOptions` property of `IModalDialog`.  Note an Id of -1 means new record while 0 means a default record (0 is the default value for `int`).
+2. The Exit mechanism.  This is either:
    1.  By calling close on `Modal` if it's in a modal context.
    2.  By calling the `ExitAction` delegate if one if registered.
-   3.  The default - exit to root.
-   
+   3.  A default - exit to root.
+ 
 ```csharp
 // Blazor.SPA/Components/Base/RecordFormBase.cs
     public class RecordFormBase<TRecord> : ComponentBase  where TRecord : class, IDbRecord<TRecord>, new()
     {
         [CascadingParameter] public IModalDialog Modal { get; set; }
-
-        [Parameter]
-        public int ID
-        {
-            get => this._Id;
-            set => this._Id = value;
-        }
-
+        [Parameter] public int ID {get; set;}
         [Parameter] public EventCallback ExitAction { get; set; }
-
         [Inject] protected NavigationManager NavManager { get; set; }
-
         protected IFactoryControllerService<TRecord> Service { get; set; }
-
         protected virtual bool IsLoaded => this.Service != null && this.Service.Record != null;
-
         protected virtual bool HasServices => this.Service != null;
         protected bool _isModal => this.Modal != null;
-
-        protected int _Id = -1;
+        protected int _modalId = 0;
+        protected int _Id => _modalId != 0 ? _modalId : this.ID;
 
         protected async override Task OnInitializedAsync()
         {
@@ -102,7 +92,7 @@ The form detects if it's in a modal dialog context by checking by checking for a
         {
             if (this._isModal && this.Modal.Options.TryGet<int>("Id", out int value))
             {
-                this._Id = value;
+                this._modalId = value;
                 return true;
             }
             return false;
@@ -122,13 +112,15 @@ The form detects if it's in a modal dialog context by checking by checking for a
 
 ### EditRecordFormBase
 
-This is the base for editor forms. It inherits from `RecordFormBase` and implements the extra functionality needed for editing.
+`EditRecordFormBase` is the base for editor forms. It inherits from `RecordFormBase` and implements editing functionality.
 
 It:
 1. Manages the `EditContext`.
 2. Has a set of Boolean Properties to track state and manage button display/disabled state.
-3. Saves the record.   
+3. Saves the record.
 
+The `Dirty` property interfaces with the Modal Dialog to lock it (not allow exit and turn off navigation) when the form is dirty.
+ 
 ```csharp
 // Blazor.SPA/Components/Base/EditRecordFormBase.cs
 public abstract class EditRecordFormBase<TRecord> : RecordFormBase<TRecord>, IDisposable where TRecord : class, IDbRecord<TRecord>, new()
@@ -157,7 +149,7 @@ public abstract class EditRecordFormBase<TRecord> : RecordFormBase<TRecord>, IDi
     protected EditFormState EditFormState { get; set; }
 ```
 
-The next set of properties are state properties used in the code and by the razor buttons to dictate display/disabled state
+The next set of properties are state properties used in the code and by the razor buttons to control display/disabled state.
 
 ```csharp
     protected bool _isNew => this.Service?.IsNewRecord ?? true;
@@ -172,7 +164,7 @@ The next set of properties are state properties used in the code and by the razo
     protected string _saveButtonText => this._isNew ? "Save" : "Update";
 ```
 
-`LoadRecordAsync` first calls the base to get the record and then creates the `EditContext` and registers with `EditContext.OnFieldChanged`.  The other methods handle state change.
+`LoadRecordAsync` calls the base to get the record, creates the `EditContext` and registers with `EditContext.OnFieldChanged`.  The other methods handle state change.
 
 ```csharp
     protected async override Task OnInitializedAsync()
@@ -262,11 +254,11 @@ Finally the button event handlers to control save and exiting a dirty form.
 }
 ```
 
-## Implementing the Forms
+## Implementing Forms
 
 ### WeatherForecastViewerForm
 
-The C# code for the `WeatherForecastViewerForm` is pretty simple.
+The code for the `WeatherForecastViewerForm` is pretty simple.
 
 1. Inherit from `RecordFormBase` and set `TRecord` as `WeatherForecast`.
 2. Get the `WeatherForecastControllerService` and assign it to the base `Service` property.
@@ -285,11 +277,13 @@ public partial class WeatherForecastViewerForm : RecordFormBase<WeatherForecast>
 }
 ```
 
-The detail is in the Razor code.  
+The majority of the work is in the Razor code.  
 1. There's no Html code, it's all components.  We'll look at UI components in detail on the next article.  
 2. The layout is based on Bootstrap grids.
 3. Column size dictated control size.
-4. `UILoader` only loads it's content when we have a reocrd to display.
+4. `UILoader` only loads it's content when we have a record to display.
+
+> This now looks very much like an XML editor configuration file!
 
 ```html
 @namespace Blazor.Database.Components
@@ -352,9 +346,9 @@ The detail is in the Razor code.
 
 ### WeatherForecastEditorForm
 
-`WeatherForecastEditorForm` is similar to 1
+`WeatherForecastEditorForm` is similar to `WeatherForecastViewerForm`.
 
-The C# code for the `WeatherForecastEditorForm` is again pretty simple.
+The code is again pretty simple.
 
 1. Inherit from `EditRecordFormBase` and set `TRecord` as `WeatherForecast`.
 2. Get the `WeatherForecastControllerService` and assign it to the base `Service` property.
@@ -379,7 +373,7 @@ The Razor file is shown below.  It's based on the standard Blazor EditForm with 
 3. `ValidationFormState` is a custom validation control.
 4. The buttons tie into the boolena control properties to manage their state.
 
-The custom controls are covered in separate articles that are referenced in the Links section.
+The custom controls are covered in separate articles that are referenced in the Links section.  I haven't abstracted this further so you can see a full form in action.  You can move all the Title, Edit Form and button sections into a FormWrapper component. 
 
 ```html
 @namespace Blazor.Database.Components

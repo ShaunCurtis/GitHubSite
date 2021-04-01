@@ -12,7 +12,7 @@ published: 2020-07-01
 This article and all the others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
 :::
 
-This article is the second in a series on Building Blazor Database Applications.  This article describes techniques and methods for abstracting the data and business logic layers into boilerplate library code.  It is a total rewrite from earlier releases.
+This the second article in a series on Building Blazor Database Applications.  It describes how to build the data and business logic layers into boilerplate library code that makes deploying application specific data services simple.  It is a total rewrite from earlier releases.
 
 The articles in the series are:
 
@@ -25,15 +25,15 @@ The articles in the series are:
 
 ## Repository and Database
 
-The repository for the articles has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  [CEC.Blazor GitHub Repository](https://github.com/ShaunCurtis/CEC.Blazor) is obselete and will be removed.
+The repository for the articles has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
 
-There's a SQL script in /SQL in the repository for building the database.
+There's a SQL script in /SQL in the repository for building the database.  The application can use either a real SQL database or an in-memory SQLite database.
 
 [You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
 
 ## Objective
 
-Before diving into specifics, our goal is to be able to declare a UI controller service something like this:
+Before diving into specifics, our goal is to get the library code to a point were declaring a UI controller service is as simple as this:
 
 ```csharp
     public class WeatherForecastControllerService : FactoryControllerService<WeatherForecast>
@@ -56,25 +56,30 @@ And a database `DbContext` that looks like:
 
     }
 ```
-The process is:
+
+So the process for adding a new database entity is:
 1. Add the necessary table to the database.
 2. Define a Dataclass.
 2. Define a `DbSet` in the `DbContext`.
-3. Define a  `public class nnnnnnControllerService : FactoryControllerService<nnnnnn>` Service and register it with the Services container.
+3. Define a `public class nnnnnnControllerService : FactoryControllerService<nnnnnn>` Service and register it with the Services container.
+
+There will be complications with certain entities, but that doesn't invalidate the approach - 80%+ of the code in the library.
 
 
 ## Services
 
-Blazor is built on DI [Dependency Injection] and IOC [Inversion of Control] principles.  If you're unfamiliar with these concepts, do a little [backgound reading](https://www.codeproject.com/Articles/5274732/Dependency-Injection-and-IoC-Containers-in-Csharp) before diving into Blazor.  You'll save yourself a lot of time in the long run!
+Blazor is built on DI [Dependency Injection] and IOC [Inversion of Control] principles.  If you're unfamiliar with these concepts, do a little [backgound reading](https://www.codeproject.com/Articles/5274732/Dependency-Injection-and-IoC-Containers-in-Csharp) before diving into Blazor.  It'll save you time in the long run!
 
 Blazor Singleton and Transient services are relatively straight forward.  You can read more about them in the [Microsoft Documentation](https://docs.microsoft.com/en-us/aspnet/core/blazor/fundamentals/dependency-injection).  Scoped are a little more complicated.
 
 1. A scoped service object exists for the lifetime of a client application session - note client and not server.  Any application resets, such as F5 or navigation away from the application, resets all scoped services.  A duplicated tab in a browser creates a new application, and a new set of scoped services.
-2. A scoped service can be scoped to an object in code.  This is most common in a UI conponent.  The `OwningComponentBase` component class has functionality to restrict the life of a scoped service to the lifetime of the component. This is covered in more detail in another article. 
+2. A scoped service can be further scoped to an single object in code.  The `OwningComponentBase` component class has functionality to restrict the life of a scoped service to the lifetime of the component.
 
-`Services` is the Blazor IOC [Inversion of Control] container. They are declared in `startup.cs` in `ConfigureServices`:
+`Services` is the Blazor IOC [Inversion of Control] container. Service instances are declared:
+1. In Blazor Server in `Startup.cs` in `ConfigureServices`
+2. In Blazor WASM in `Program.cs`.
 
-We use a Service Collection extension `AddApplicationServices` to keep all the application specific services under one roof.
+The solution uses a Service Collection extension method `AddApplicationServices` to keep all the application specific services under one roof.
 
 ```csharp
 // Blazor.Database.Web/startup.cs
@@ -83,31 +88,36 @@ public void ConfigureServices(IServiceCollection services)
     services.AddRazorPages();
     services.AddServerSideBlazor();
     // the local application Services defined in ServiceCollectionExtensions.cs
-    services.AddApplicationServices(Configurtion);
+    services.AddApplicationServices(Configuration);
 }
 ```
 
-`AddApplicationServices` is shown below.  It's declared within a static class as a static extension.  There are two methods, one for each database configuration.
+`AddApplicationServices` is shown below.  It's declared as a static extension method within a static class.  There are two methods, one for each database configuration, in Server mode.
 
 
 ```csharp
-/Extensions/ServiceCollectionExtensions.cs
-public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
+//Blazor/Database/Web/Extensions/ServiceCollectionExtensions.cs
+public static class ServiceCollectionExtensions
 {
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Local DB Setup
+        var dbContext = configuration.GetValue<string>("Configuration:DBContext");
+        services.AddDbContextFactory<LocalWeatherDbContext>(options => options.UseSqlServer(dbContext), ServiceLifetime.Singleton);
+        services.AddSingleton<IFactoryDataService, LocalDatabaseDataService>();
+        services.AddScoped<WeatherForecastControllerService>();
+        return services;
+    }
 
-    // Local DB Setup
-    //var dbContext = configuration.GetValue<string>("Configuration:DBContext");
-    //services.AddDbContextFactory<LocalWeatherDbContext>(options => options.UseSqlServer(dbContext), ServiceLifetime.Singleton);
-    //services.AddSingleton<IFactoryDataService, LocalDatabaseDataService>();
-
-    // In Memory DB Setup
-    var memdbContext = "Data Source=:memory:";
-    services.AddDbContextFactory<InMemoryWeatherDbContext>(options => options.UseSqlite(memdbContext), ServiceLifetime.Singleton);
-    services.AddSingleton<IFactoryDataService, TestDatabaseDataService>();
-
-    services.AddScoped<WeatherForecastControllerService>();
-
-    return services;
+    public static IServiceCollection AddInMemoryApplicationServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        // In Memory DB Setup
+        var memdbContext = "Data Source=:memory:";
+        services.AddDbContextFactory<InMemoryWeatherDbContext>(options => options.UseSqlite(memdbContext), ServiceLifetime.Singleton);
+        services.AddSingleton<IFactoryDataService, TestDatabaseDataService>();
+        services.AddScoped<WeatherForecastControllerService>();
+        return services;
+    }
 }
 ```
 
@@ -138,21 +148,21 @@ public static IServiceCollection AddApplicationServices(this IServiceCollection 
 Points:
 1. There's an `IServiceCollection` extension method for each project/library to encapsulate the specific services needed for the project.
 2. Only the data layer service is different.  The Server version, used by both the Blazor Server and the WASM API Server, interfaces with the database and Entity Framework.  It's scoped as a Singleton.
-3. Everything is async, so we use a `DbContextFactory` and manage `DbContext` instances as we use and release them.  The WASM Client version uses `HttpClient` (which is a scoped service) to make calls to the API and is therefore scoped.
-4. `FactoryDataService` implementing `IFactoryDataService` is used to process all the data requests through generics, `TRecord` defining which dataset is retrieved and returned.   These services, along with a set of `DbContext` extensions, boilerplate all the core data service code into library classes.
-5. We have both a real SQL Database and an in-memory SQLite `DbContext` definition.
+3. Everything is async.  We use a `DbContextFactory` and manage `DbContext` instances as we use and release them.  The WASM Client version uses `HttpClient` (which is a scoped service) to make calls to the API and is therefore scoped.
+4. the `FactoryDataService` implementing `IFactoryDataService` processes all data requests through generics.  `TRecord` defines which dataset is retrieved and returned.   The factory services boilerplate all core data service code.
+5. There's both a real SQL Database and an in-memory SQLite `DbContext`.
 
 
 ### Generics
 
-The boilerplate library code relies heavily on Generics.  The two generic entities we use are:
-1. `TRecord` - this represents a model record class.  It must implement `IDbRecord`, a vanilla `new()` and be a class.  `TRecord` is used at the Method level.
-2. `TDbContext` - this is the database context and must inherit from the `DbContext` class.
+The factory library code relies heavily on Generics.  Two generic entities are defined:
+1. `TRecord` represents a model record class.  It must be a class, implement `IDbRecord` and define an empty `new()`.  `TRecord` is used in the factory classes at the method level.
+2. `TDbContext` is the database context. It must inherit from the `DbContext` class.
 
 Class declarations look like this:
 
 ```csharp
-/Services/FactoryDataService.cs
+//Blazor.SPA/Services/FactoryDataService.cs
 public abstract class FactoryDataService<TContext>: IFactoryDataService<TContext>
     where TContext : DbContext
 ......
@@ -163,19 +173,19 @@ public abstract class FactoryDataService<TContext>: IFactoryDataService<TContext
 ```
 ## Data Access
 
-Before we dive into the detail, let's look at the main CRUDL methods we need to implement:
+Before diving into the detail, let's look at the main CRUDL methods we need to implement:
 
 1. *GetRecordList* - get a List of records in the dataset.  This can be paged and sorted.
-3. *GetRecord* - get a single record by ID or GUID
+3. *GetRecord* - get a single record by ID
 4. *CreateRecord* - Create a new record
 5. *UpdateRecord* - Update the record based on ID
 6. *DeleteRecord* - Delete the record based on ID
 
-Keep these in mind as we work through the data layers.
+Keep these in mind as we work through this article.
 
 #### DbTaskResult
 
-Data layer CUD operations return a `DbTaskResult` object.  Most of the properties are self-evident.  The UI consumes the information returned to display result messages.  `NewID` returns the new ID from a Create operation.  The information is structured to be used in CSS Framework Alerts and Toasts.
+Data layer CUD operations return a `DbTaskResult` object.  Most of the properties are self-evident.  It's designed to be consumed by the UI to build CSS Framework entities such as Alerts and Toasts.  `NewID` returns the new ID from a *Create* operation.
 
 ```csharp
 public class DbTaskResult
@@ -192,7 +202,7 @@ Data classes implement `IDbRecord`.
 
 1. `ID` is the standard database Identity field.  normally an `int`.
 2. `GUID` is a unique identifier for this copy of the record.
-3. `DisplayName` provides a generic name for the record.
+3. `DisplayName` provides a generic name for the record.  We can use this in titles and other UI components.
 
 ```csharp
     public interface IDbRecord<TRecord> 
@@ -206,10 +216,12 @@ Data classes implement `IDbRecord`.
 
 ### WeatherForecast
 
+Here's the dataclass for a weatherforecast data entity.
+
 Points:
-1. Use of Attributes for Entity Framework.
+1. Entity Framework attributes used for property labelling.
 2. Implementation of `IDbRecord`.
-3. Implementation of `IValidation`.  This will be covered later.
+3. Implementation of `IValidation`.  We'll cover custom validation in the third article.
 
 ```csharp
     public class WeatherForecast : IValidation, IDbRecord<WeatherForecast>
@@ -247,7 +259,7 @@ Points:
 
 ## The Entity Framework Tier
 
-The application implements two Entity Framework DBContexts.
+The application implements two Entity Framework `DBContext` classes.
 
 #### WeatherForecastDBContext
 
@@ -255,7 +267,8 @@ The `DbContext` has a `DbSet` per record type.  Each `DbSet` is linked to a view
 
 #### LocalWeatherDbContext
 
-The class looks like this:
+The class is very basic, creating a `DbSet` per dataclass.  The DBSet must be the same name as the dataclass.
+
 ```csharp
     public class LocalWeatherDbContext : DbContext
     {
@@ -269,7 +282,9 @@ The class looks like this:
     }
 ```
 
-#### 
+#### InMemoryWeatherDbContext
+
+The in-memory version is a little more complicated as it needs to build and populate the database on the fly.
 
 ```csharp
     public class InMemoryWeatherDbContext : DbContext
@@ -326,9 +341,9 @@ The class looks like this:
 
 #### DbContextExtensions
 
-The base library adds a helper extension method to `DbContext` to get a `DbSet` object for a dataclass.
+We're using generics, so we need a way to get the `DbSet` for the dataclass declared as `TRecord`.  This is implemented as a extension method on `DbContext`.  For this to work, each `DbSet` should have the same name as the dataclass. `dbSetName` provides backup if the names differ.   
 
-It relies on naming conventions i.e. the `DbSet` having the same name as the dataclass, and uses reflection to find the `DbSet` for `TRecord`.
+The method uses reflection to find the `DbSet` for `TRecord`.
 
 ```csharp
 public static DbSet<TRecord> GetDbSet<TRecord>(this DbContext context, string dbSetName = null) where TRecord : class, IDbRecord<TRecord>, new()
@@ -353,7 +368,7 @@ public static DbSet<TRecord> GetDbSet<TRecord>(this DbContext context, string db
 
 #### IFactoryDataService
 
-the `IFactoryDataService` defines the base CRUDL methods all DataServices must implement.  All Data Services are loaded into the Services container through the interface and consumed through this interface.  Note the use of `TRecord` in each method.  
+`IFactoryDataService` defines the base CRUDL methods DataServices must implement.  Data Services are defined in the Services container using the interface and consumed through the interface.  Note `TRecord` in each method and it's constraints.  There are two `GetRecordListAsync` methods.  One gets the whole dataset, the other uses a `Paginstor` object to page and sort the dataset.  More on the `Paginator` in articles 5.
 
 ```csharp
 public interface IFactoryDataService 
@@ -399,7 +414,8 @@ public abstract class FactoryDataService: IFactoryDataService
 
 #### FactoryServerDataService
 
-This is the concrete server-side implmentation.  Each CRUDL operation is implemented using Entity Framework.  note the use of `DbContext` instances per operation and `GetDBSet` to get the correct DBSet for `TRecord`.
+This is the concrete server-side implementation.  Each database operation is implemented using separate `DbContext` instances.  Note `GetDBSet` used to get the correct DBSet for `TRecord`.
+
 ```csharp
 public class FactoryServerDataService<TDbContext> : FactoryDataService where TDbContext : DbContext
 {
@@ -479,7 +495,7 @@ public class FactoryServerDataService<TDbContext> : FactoryDataService where TDb
 
 The `FactoryWASMDataService` looks a little different.  It implements the interface, but uses `HttpClient` to get/post to the API on the server.
 
-The structure is:
+The service map looks like this:
 
 UI Controller Service => WASMDataService => API Controller => ServerDataService => DBContext
 
@@ -538,9 +554,9 @@ public class FactoryWASMDataService : FactoryDataService, IFactoryDataService
 
 #### API Controllers
 
-Controllers are implemented in the Web Server.  There's one API controlller per DataClass.
+Controllers are implemented in the Web project, one per DataClass.
 
-The WeatherForecast Controller is shown below.  It basically passes requests through to the `FactoryServerDataService` through the `IFactoryService` and returns the results.
+The WeatherForecast Controller is shown below.  It basically passes requests through the `IFactoryService` interface to the `FactoryServerDataService`.
 
 ```csharp
 [ApiController]
@@ -590,9 +606,9 @@ public class WeatherForecastController : ControllerBase
 ```
 #### FactoryServerInMemoryDataService
 
-For testing and demos there's a second Server data service thart uses the SQLite in-memory `DbContext`.
+For testing and demos there's another Server Data Service using the SQLite in-memory `DbContext`.
 
-The code is very similar to `FactoryServerDataService` but only uses a single `DbContext` for all transactions.
+The code is similar to `FactoryServerDataService`, but uses a single `DbContext` for all transactions.
 
 ```csharp
 public class FactoryServerInMemoryDataService<TDbContext> : FactoryDataService, IFactoryDataService where TDbContext : DbContext
@@ -675,17 +691,20 @@ public class FactoryServerInMemoryDataService<TDbContext> : FactoryDataService, 
 
 ### Controller Services
 
-Controller Services are the interface between the Data Service and the UI.  They implement the logic needed to manage the dataclass they are responsible for.  While we intreface and boilerplate the common code, there will be some dataclass specific code.
+Controller Services are the interface between the Data Service and the UI.  They implement the logic needed to manage the dataclass they are responsible for.  While most of the code resides in `FactoryControllerService`, there's inevitiably some dataclass specific code.
 
 #### IFactoryControllerService
 
-`IFactoryControllerService` defines the common interface that the boilerplate form code uses.  Note:
+`IFactoryControllerService` defines the common interface that the base forms code uses.
+
+Note:
 
 1. Generic `TRecord`.
-2. The Controller holds the current record and record list.
-3. There are events for record and list changes.
-4. There are reset methods to reset the service/record/list.
-5. There are methods for CRUDL that operate on the current record/list.
+2. Properties holding the current record and record list.
+3. Boolean logic properties to simplify state management.
+3. Events for record and list changes.
+4. Reset methods to reset the service/record/list.
+5. CRUDL methods that update/use the current record/list.
 
 ```csharp
     public interface IFactoryControllerService<TRecord> where TRecord : class, IDbRecord<TRecord>, new()
@@ -719,13 +738,15 @@ Controller Services are the interface between the Data Service and the UI.  They
 
 #### FactoryControllerService
 
-`FactoryControllerService` is abstract implementation of the `IFactoryControllerService` that contains all the boilerplate code.  Much of the code is self evident.  
+`FactoryControllerService` is abstract implementation of the `IFactoryControllerService`.  It contains all the boilerplate code.  Much of the code is self evident.  
 
 ```csharp
 public abstract class FactoryControllerService<TRecord> : IDisposable, IFactoryControllerService<TRecord> where TRecord : class, IDbRecord<TRecord>, new()
 {
+    // unique ID for this instance
     public Guid Id { get; } = Guid.NewGuid();
 
+    // Record Property.  Triggers Event when changed.
     public TRecord Record
     {
         get => _record;
@@ -737,6 +758,7 @@ public abstract class FactoryControllerService<TRecord> : IDisposable, IFactoryC
     }
     private TRecord _record = null;
 
+    // Recordset Property. Triggers Event when changed.
     public List<TRecord> Records
     {
         get => _records;
@@ -855,7 +877,7 @@ public abstract class FactoryControllerService<TRecord> : IDisposable, IFactoryC
 
 #### WeatherForecastControllerService
 
-The net gain from all boilerplating is a declaration of the `WeatheForcastControllerService` like this:
+The boilerplating payback comes in the declaration of `WeatheForcastControllerService`:
 
 ```csharp
 public class WeatherForecastControllerService : FactoryControllerService<WeatherForecast>
@@ -865,14 +887,13 @@ public class WeatherForecastControllerService : FactoryControllerService<Weather
 ```
 
 ## Wrap Up
-This article demonstrates how to abstract the data and controller tier code into a library and build boilerplate code using generics.
+
+This article shows how the data services can be built using a set of abstract classes that implement much of the boilerplate code for CRUDL operations.  I've purposely kept error checking in the code to a minimum, to make it much more readable.  You can imlement as little or as much as you like.
 
 Some key points to note:
 1. Aysnc code is used wherever possible.  The data access functions are all async.
 2. Generics make much of the boilerplating possible.  They create complexity, but are worth the effort.
 3. Interfaces are crucial for Dependancy Injection and UI boilerplating.
-
-The next section looks at the [Presentation Layer / UI Framework](https://www.codeproject.com/Articles/5279963/Building-a-Database-Application-in-Blazor-Part-3-C).
 
 ## History
 

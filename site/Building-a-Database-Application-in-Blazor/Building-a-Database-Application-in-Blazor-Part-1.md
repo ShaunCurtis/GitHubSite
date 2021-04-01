@@ -94,7 +94,7 @@ The data services are accessed using dependency injection, either directly or th
 
 ### UI
 
-I step away from the basic *Pages* philosophy - there are no *Pages* directories except in the *Web* project.  SPAs aren't web sites.  We need step outside the webpage paradigm.  The Blazor UI is a component based; to think of it as a web page perpetuates the paradigm.  The only web page is the launch page on the server.  Once the SPA launches, the application changes out components to transition between Views.  I've built an SPA without a router and no Urls in sight.
+I step back from the basic *Pages* philosophy - I think this is one area the Microsoft (and other SPA frameworks) could have introduced some new terminology.  There are no *Pages* directories except in the *Web* project.  SPAs aren't web sites.  We need step outside the webpage paradigm.  The Blazor UI is a component based; to think of it as a web page perpetuates the paradigm.  The only web page is the launch page on the server.  Once the SPA launches, the application changes out components to transition between Views.  I've built an SPA with no router or Urls in sight - just like a desktop application.
 
 I'll use the following terminology thoughout these articles:
 1. Page - the launch web page on the web site.  The only page in an SPA.
@@ -115,11 +115,11 @@ The application is configured to build and deploy both Server or WASM versions o
 I use Visual Studio, so the Github repository consists of a solution with five projects.  These are:
 
 1. Blazor.SPA - the core library containing everything that can be boilerplated and reused across any project.
-2. Blazor.Database - this is the library shared by both the Server and WASM projests.  Almost all the project code lives here.  Examples are the EF DB Context, Model classes, model specific CRUD components, Bootstrap SCSS, Views, Forms, ...
-3. Blazor.DataBase.Server - the combined Server Library project.
-4. Blazor.Database.WASM - the WASM Client project.
-5. Blazor.Database.Web - The host ASPNetCore server.
+2. Blazor.Database - this is the library shared by the other projests.  Almost all the project code lives here.  Examples are the EF DB Context, Model classes, model specific CRUD components, Bootstrap SCSS, Views, Forms, ...
+3. Blazor.Database.WASM - the WASM Client project.
+4. Blazor.Database.Web - The host ASPNetCore server.
 
+You may have noticed at this point that there's no Server project.  You don't need one
 ## UI Structure
 
 The application uses a structure approach to the UI.  This makes it easier to stop repeating the same old Razor/Html markup across an application, build re-usable components and move code from the application into libraries.
