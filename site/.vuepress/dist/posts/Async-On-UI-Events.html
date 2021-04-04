@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Blazor Async Behaviour on UI Events | Cold Elm Coders</title>
+    <meta name="generator" content="VuePress 1.8.2">
+    
+    <meta name="description" content="">
+    <meta name="theme-color" content="#3eaf7c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    
+    <link rel="preload" href="/assets/css/0.styles.44eeee96.css" as="style"><link rel="preload" href="/assets/js/app.a96bab3c.js" as="script"><link rel="preload" href="/assets/js/3.3d8b86b8.js" as="script"><link rel="preload" href="/assets/js/43.e367e3ff.js" as="script"><link rel="prefetch" href="/assets/js/1.3b0fc1ec.js"><link rel="prefetch" href="/assets/js/10.a274dc46.js"><link rel="prefetch" href="/assets/js/11.162f7736.js"><link rel="prefetch" href="/assets/js/12.0bc9f964.js"><link rel="prefetch" href="/assets/js/13.b0705d6f.js"><link rel="prefetch" href="/assets/js/14.b0fec372.js"><link rel="prefetch" href="/assets/js/15.cb71d553.js"><link rel="prefetch" href="/assets/js/16.8f2a34f8.js"><link rel="prefetch" href="/assets/js/17.3ddfb39a.js"><link rel="prefetch" href="/assets/js/18.6e5e57eb.js"><link rel="prefetch" href="/assets/js/19.170882f0.js"><link rel="prefetch" href="/assets/js/20.23fde445.js"><link rel="prefetch" href="/assets/js/21.5d6a0b77.js"><link rel="prefetch" href="/assets/js/22.319e9c8b.js"><link rel="prefetch" href="/assets/js/23.f8e66cc9.js"><link rel="prefetch" href="/assets/js/24.65fd5f70.js"><link rel="prefetch" href="/assets/js/25.d231eb3a.js"><link rel="prefetch" href="/assets/js/26.bdc15d10.js"><link rel="prefetch" href="/assets/js/27.753499ce.js"><link rel="prefetch" href="/assets/js/28.ecd795c7.js"><link rel="prefetch" href="/assets/js/29.57d01ee4.js"><link rel="prefetch" href="/assets/js/30.1d1755ec.js"><link rel="prefetch" href="/assets/js/31.e29475e1.js"><link rel="prefetch" href="/assets/js/32.c42d5bd0.js"><link rel="prefetch" href="/assets/js/33.e3776b2e.js"><link rel="prefetch" href="/assets/js/34.86bd7e47.js"><link rel="prefetch" href="/assets/js/35.a3cc5f7b.js"><link rel="prefetch" href="/assets/js/36.91c34d67.js"><link rel="prefetch" href="/assets/js/37.10fbf619.js"><link rel="prefetch" href="/assets/js/38.8143bcfa.js"><link rel="prefetch" href="/assets/js/39.fc0c94f8.js"><link rel="prefetch" href="/assets/js/4.0476436c.js"><link rel="prefetch" href="/assets/js/40.1941f394.js"><link rel="prefetch" href="/assets/js/41.6a31a359.js"><link rel="prefetch" href="/assets/js/42.c214c146.js"><link rel="prefetch" href="/assets/js/44.1c8fb58c.js"><link rel="prefetch" href="/assets/js/45.b6c76ef8.js"><link rel="prefetch" href="/assets/js/46.2c60e8dc.js"><link rel="prefetch" href="/assets/js/47.58f3a570.js"><link rel="prefetch" href="/assets/js/5.c21f6997.js"><link rel="prefetch" href="/assets/js/6.c00c814d.js"><link rel="prefetch" href="/assets/js/7.f63b3fdb.js"><link rel="prefetch" href="/assets/js/8.a4f8ac88.js"><link rel="prefetch" href="/assets/js/9.62cada5e.js">
+    <link rel="stylesheet" href="/assets/css/0.styles.44eeee96.css">
+  </head>
+  <body>
+    <div id="app" data-server-rendered="true"><div class="theme-container"><header class="navbar"><div class="sidebar-button"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" viewBox="0 0 448 512" class="icon"><path fill="currentColor" d="M436 124H12c-6.627 0-12-5.373-12-12V80c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12z"></path></svg></div> <a href="/" class="home-link router-link-active"><!----> <span class="site-name">Cold Elm Coders</span></a> <div class="links"><div class="search-box"><input aria-label="Search" autocomplete="off" spellcheck="false" value=""> <!----></div> <nav class="nav-links can-hide"><div class="nav-item"><a href="/articles/" class="nav-link">
+  Articles
+</a></div><div class="nav-item"><a href="/posts/" class="nav-link router-link-active">
+  Posts
+</a></div><div class="nav-item"><a href="/ArchivedArticles/" class="nav-link">
+  Old Articles
+</a></div><div class="nav-item"><a href="/Building-a-Database-Application-in-Blazor/" class="nav-link">
+  Database Application
+</a></div><div class="nav-item"><a href="https://cec-blazor-examples.azurewebsites.net/" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Demo Site
+  <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></div> <!----></nav></div></header> <div class="sidebar-mask"></div> <aside class="sidebar"><nav class="nav-links"><div class="nav-item"><a href="/articles/" class="nav-link">
+  Articles
+</a></div><div class="nav-item"><a href="/posts/" class="nav-link router-link-active">
+  Posts
+</a></div><div class="nav-item"><a href="/ArchivedArticles/" class="nav-link">
+  Old Articles
+</a></div><div class="nav-item"><a href="/Building-a-Database-Application-in-Blazor/" class="nav-link">
+  Database Application
+</a></div><div class="nav-item"><a href="https://cec-blazor-examples.azurewebsites.net/" target="_blank" rel="noopener noreferrer" class="nav-link external">
+  Demo Site
+  <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></div> <!----></nav>  <ul class="sidebar-links"><li><section class="sidebar-group collapsable depth-0"><p class="sidebar-heading open"><span>My Posts</span> <span class="arrow down"></span></p> <ul class="sidebar-links sidebar-group-items"><li><a href="/posts/" aria-current="page" class="sidebar-link">Posts</a></li><li><a href="/posts/XML-XSD-Serialization.html" class="sidebar-link">DotNetCore XML/XSD Serialization</a></li><li><a href="/posts/Async-On-UI-Events.html" aria-current="page" class="active sidebar-link">Blazor Async Behaviour on UI Events</a></li><li><a href="/posts/Notification-Service-Pattern.html" class="sidebar-link">Blazor Notification Service Pattern</a></li></ul></section></li></ul> </aside> <main class="page"> <div class="theme-default-content content__default"><h1 id="blazor-async-behaviour-on-ui-events"><a href="#blazor-async-behaviour-on-ui-events" class="header-anchor">#</a> Blazor Async Behaviour on UI Events</h1> <p>If you're new to Blazor you can get a little confused about how to wire up event handlers to events in Blazor Components.</p> <p>Let's look at an example</p></div> <footer class="page-edit"><!----> <!----></footer> <div class="page-nav"><p class="inner"><span class="prev">
+      ←
+      <a href="/posts/XML-XSD-Serialization.html" class="prev">
+        DotNetCore XML/XSD Serialization
+      </a></span> <span class="next"><a href="/posts/Notification-Service-Pattern.html">
+        Blazor Notification Service Pattern
+      </a>
+      →
+    </span></p></div> </main></div><div class="global-ui"><!----></div></div>
+    <script src="/assets/js/app.a96bab3c.js" defer></script><script src="/assets/js/3.3d8b86b8.js" defer></script><script src="/assets/js/43.e367e3ff.js" defer></script>
+  </body>
+</html>
