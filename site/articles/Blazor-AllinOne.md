@@ -1,44 +1,44 @@
 ﻿---
 title: Blazor AllinOne - Multi SPA Hosting
 date: 2021-02-26
-oneliner: How to build a single Blazor Apllication the runs in both WASM and Server Modes.
-precis: How to build a single Blazor Apllication the runs in both WASM and Server Modes.
-published: 2021-04-03
+oneliner: How to build a single Blazor Application that runs in both WASM and Server Modes.
+precis: How to build a single Blazor Application that runs in both WASM and Server Modes.
+published: 2021-04-04
 ---
 
 # Blazor AllinOne 
 
 Published: 2021-02-26
 
-Last Update: 2021-02-26
+Last Update: 2021-04-04
 
+This article shows how to build a single Blazor application that runs in both WASM and Server Modes.
 
-![screenshot](/siteimages/Articles/allinone/screenshot.png)
+![screenshot](https://shauncurtis.github.io/siteimages/Articles/AllinOne/Screenshot.png)
 
 ## Code Repository
 
+The Code repository for the article is [here - https://github.com/ShaunCurtis/AllinOne ](https://github.com/ShaunCurtis/AllinOne)
 
 ## The Solution and Projects
 
-Create a new solution called **Blazor** using the Blazor WebAssembly template.  Don't choose to host it on Aspnetcore.  You'll end up with a single project called **Blazor**.
+Create a new solution called **Blazor** using the Blazor WebAssembly template.  Don't choose to host it on Aspnetcore.  You will get a single project called **Blazor**.
 
-Now add a second project to the solution using the *ASP.NET Core Web App* template.  Call it **Blazor.Web**.  Set iy as the startup project.
+Now add a second project to the solution using the *ASP.NET Core Web App* template.  Call it **Blazor.Web**.  Set it as the startup project.
 
 The solution should now look like this:
 
-![Solution](/siteimages/Articles/allinone/base-projects.png)
+![Solution](https://shauncurtis.github.io/siteimages/Articles/AllinOne/Base-Projects.png)
 
-## Getting the WASM context up and running
+## Blazor Project Changes
 
-### Blazor Project Changes
-
-The solution runs the WASM context in a sub-directory on the web site.  To get this to work there are a few modifications thst need to be made to *Blazor*.
+The solution runs the WASM context in a sub-directory on the web site.  To get this working there are a few modifications that need to be made to the *Blazor* project.
 
 1. Move the contents of wwwroot to *Blazor.Web* and delete everything in *wwwroot*.
 2. Add a `StaticWebAssetBasePath` entry to the project file set to `wasm`.  This is case sensitive in the context in which it is used, so stick to small letters.  
 3. Add the necessary packages.
 
-The file should look like this:
+The project file should look like this:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
@@ -61,24 +61,21 @@ The file should look like this:
 </Project>
 ```
 
-#### MainLayout
+### MainLayout
 
-`MainLayout` needs to be modified to handle both contexts.  We change the colour scheme for each context.  WASM will be *Teal* and Server will be *Steel*. 
+`MainLayout` needs to be modified to handle both contexts.  The solution changes the colour scheme for each context.  WASM  *Teal* and Server *Steel*. 
 
 ```csharp
 @inherits LayoutComponentBase
-
 <div class="page">
     @*change class*@
     <div class="@_sidebarCss">
         <NavMenu />
     </div>
-
     <div class="main">
         <div class="top-row px-4">
             <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
         </div>
-
         <div class="content px-4">
             @Body
         </div>
@@ -109,9 +106,9 @@ Add the following Css styles to the component Css file below `.sidebar`.
 /* End Added Styles*/
 ```
 
-#### NavMenu
+### NavMenu
 
-Add code and markup to add a link to switch between contexts.
+Add code and markup - it adds a link to switch between contexts.
 
 ```csharp
 <div class="top-row pl-4 navbar navbar-dark">
@@ -163,9 +160,9 @@ Add code and markup to add a link to switch between contexts.
     }
 }
 ```
-#### FetchData.razor
+### FetchData.razor
 
-Update the Url for getting forecasts- add a `/` at the start, the file is now in the root and not in `wasm`.
+Update the Url for getting forecasts by adding a `/` at the start, the file is now in the root and not in `wasm`.
 
 ```csharp
 protected override async Task OnInitializedAsync()
@@ -174,7 +171,7 @@ protected override async Task OnInitializedAsync()
 }
 ```
 
-### Blazor.Web
+## Blazor.Web
 
 Update the project file:
 
@@ -192,7 +189,7 @@ Update the project file:
 </Project>
 ```
 
-Add a Razor Page to *Pages* called *WASM.cshtml*.  This is the launch page for the WASM SPA.
+Add a Razor Page to *Pages* called *WASM.cshtml* - the launch page for the WASM SPA.
 
 ```html
 @page "/wasm"
@@ -225,7 +222,7 @@ Add a Razor Page to *Pages* called *WASM.cshtml*.  This is the launch page for t
 </body>
 </html>
 ```
-Add a second Razor Page to *Pages* called *Server.cshtml*.  This is the launch page for the Servr SPA.
+Add a second Razor Page to *Pages* called *Server.cshtml* - the launch page for the Servr SPA.
 
 ```csharp
 @page "/"
@@ -266,13 +263,13 @@ Add a second Razor Page to *Pages* called *Server.cshtml*.  This is the launch p
 </html>
 ``` 
 
-#### Index.cshtml
+### Index.cshtml
 
 Update the `@page` directive to `@page "/index"`.
 
-#### Startup.cs
+### Startup.cs
 
-Update `Stsrtup` to handle both middleware paths.
+Update `Startup` to handle WASM and Server middleware paths.
 
 ```csharp
 public class Startup
@@ -353,9 +350,9 @@ The application should now run.  It will start in the Server context.  Switch to
 
 ## Adding a DataService
 
-While the above configuation works we need to code it to handle more conventional data services.  We'll modify the solution to work with a very basic set of data services to show the DI and interface concepts that should be used.
+While the above configuation works, it needs some demo code to show how it handles more conventional data services.  We'll modify the solution to work with a very basic data services to show the DI and interface concepts that should be used.
 
-Go to the **Blazor** project and add *Data* and *Services* folders.
+Add *Data* and *Services* folders to the *Blazor* project.
 
 ### WeatherForecast.cs
 
@@ -463,7 +460,7 @@ namespace Blazor.Web.APIControllers
 
 ### Blazor Project Program.cs
 
-Add the API service in *Blazor* to *Program.cs* declaring it through it's `IWeatherForecastService`.
+Add the API service to *Program.cs* in the *Blazor* project, declaring it through it's `IWeatherForecastService`.
 
 ```csharp
 public class Program
@@ -483,7 +480,7 @@ public class Program
 
 ### Blazor.Web Startup.cs
 
-Add the server service in *Blazor.Web* to *Startup.cs* again through it's `IWeatherForecastService` in the *Blazor.Web* project.
+Add the server service to *Startup.cs* in the *Blazor.Web* project, again through it's `IWeatherForecastService`.
 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
@@ -499,13 +496,13 @@ public void ConfigureServices(IServiceCollection services)
 
 The solution should now build and run.
 
-![Blazor Project](/siteimages/Articles/allinone/blazor-project.png)
+![Blazor Project](https://shauncurtis.github.io/siteimages/Articles/AllinOne/Blazor-Project.png)
 
-![Blazor.Web Project](/siteimages/Articles/allinone/blazor-web-project.png)
+![Blazor.Web Project](https://shauncurtis.github.io/siteimages/Articles/AllinOne/Blazor-Web-Project.png)
 
 ## How Does It Work?
 
-Fundimentally, the difference between a Blazor Server and a Blazor WASM Application is the context in which it's run.  In the solution all SPA code is built in the Web Assembly project, and used by both the WASM and Server contexts.  There's no "shared" code library code, because it's exactly the same front end code with the same entrypoint - App.razor.  The different is in the provider of the backend services.
+Fundimentally, the difference between a Blazor Server and a Blazor WASM Application is the context in which it's run.  In the solution all SPA code is built in the Web Assembly project, and used by both the WASM and Server contexts.  There's no "shared" code library code, because it's exactly the same front end code with the same entrypoint - App.razor.  The different between the two contexts, is the provider of the backend services.
 
 The web assembly project is declared `<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">`.  It builds both a standard *Blazor.dll* file and the WASM specific code including the Web Assembly "boot configuration file" *blazor.boot.json*.
 
@@ -513,15 +510,10 @@ In the web assembly context, the initial page loads *blazor.webassembly.js*.  Th
 
 In the Server context, the server side code picks up the component reference in the initial load page and statically renders it.  It passes the rendered page to the client.  This loads and runs `blazor.server.js`, which calls back to the server SignalR Hub and gets the dynamically rendered app root component.  SPA up and running.  The services container and renderer are in the Blazor Hub - started by calling `services.AddServerSideBlazor()` in Startup when the web server starts.
 
-The data services we implemented demonstrate the beauty of Dependancy injection and interfaces.  The UI components - in our case `FetchData` consume the `IWeatherForcastService` service registered in Services.  In the WASM context, the services container starts `WeatherForecastAPIService`, while in the Server context, the services container starts `WeatherForecastServerService`.  Two different services, conforming to the same interface and consumed by the UI components using the interface.  The UI components don't care which actual service they consume, it just needs to implement `IWeatherForcastService`.
+The data services we implemented demonstrate Dependancy injection and interfaces.  The UI components - in our case `FetchData` consume the `IWeatherForcastService` service registered in Services.  In the WASM context, the services container starts `WeatherForecastAPIService`, while in the Server context, the services container starts `WeatherForecastServerService`.  Two different services, conforming to the same interface and consumed by the UI components using the interface.  The UI components don't care which service they consume, it just needs to implement `IWeatherForcastService`.
 
 ## Wrap Up
 
 Hopefully this article has provided an insight into how Blazor SPAs work and the real differences between a Server and WASM Blazor SPA.
 
-
-
-
-
-
-
+If you are reading this well into the future, the most recent version of this article will be [here](https://shauncurtis.github.io/articles/Blazor-AllinOne.html).
