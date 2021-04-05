@@ -1,0 +1,8 @@
+name: Copy
+  uses: andstor/copycat-action@v3
+  with:
+    personal_token: ${{ secrets.ACCESS_TOKEN }}
+    src_path: /site/.vuepress/dist
+    dst_path: /./
+    dst_owner: ShaunCurtis
+    dst_repo_name: ShaunCurtis.github.io
