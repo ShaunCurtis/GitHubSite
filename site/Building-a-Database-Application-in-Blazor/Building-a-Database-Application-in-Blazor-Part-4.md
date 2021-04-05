@@ -9,10 +9,6 @@ published: 2020-10-03
 # Building a Database Application in Blazor 
 ## Part 4 - UI Components
 
-::: danger
-This article as others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
-:::
-
 ## Introduction
 
 This article is the fourth in a series on Building Blazor Database Applications.  This article looks at the components we use in the UI and then focuses on how to build generic UI Components from HTML and CSS.

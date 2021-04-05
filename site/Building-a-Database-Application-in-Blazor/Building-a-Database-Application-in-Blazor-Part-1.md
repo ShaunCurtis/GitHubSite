@@ -1,5 +1,5 @@
 ﻿---
-title: A Blazor Database Template - Project Structure and Framework
+title: Part 1 - A Blazor Database Template - Project Structure and Framework
 oneliner: This article describes the Structire and Framework for Blazor Database Template.
 precis: This article is the first in a series describing a Blazor Database Template using the Weather Forecast theme of the base Blazor Template.
 date: 2021-03-27
@@ -9,13 +9,9 @@ published: 2020-10-01
 # Building a Database Application in Blazor 
 # Part 1 - Project Structure and Framework
 
-::: danger
-This article and all the others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
-:::
-
 This set of articles describes a framework for building and structuring Database Applications in Blazor.
 
-It's just **A** framework.  I make no recommendations: use it or abuse it.  It's what I use on my projects.  It's lightly opinionated: using out-of-the-box Blazor/Razor/DotNetCore systems and toolkits whereever possible.  The CSS framework is a lightly customized version of BootStrap. 
+It's just a framework.  I make no recommendations: use it or abuse it.  It's what I use on my projects.  It's lightly opinionated: using out-of-the-box Blazor/Razor/DotNetCore systems and toolkits whereever possible.  The CSS framework is a lightly customized version of BootStrap. 
  
 There are 5 articles describing various aspects of the framework and coding patterns used:
 

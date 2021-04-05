@@ -8,10 +8,6 @@ published: 2020-07-01
 
 # Part 2 - Services - Building the CRUD Data Layers
 
-::: danger
-This article and all the others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
-:::
-
 This the second article in a series on Building Blazor Database Applications.  It describes how to bouilerplate the data and business logic layers into generic library code that makes deploying application specific data services simple.  It is a total rewrite from earlier releases.
 
 The articles in the series are:
