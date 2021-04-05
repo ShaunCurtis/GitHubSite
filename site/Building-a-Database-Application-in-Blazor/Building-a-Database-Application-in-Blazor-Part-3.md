@@ -21,13 +21,12 @@ This is the third in a series of articles looking at how to build and structure 
 3. View Components - CRUD Edit and View Operations in the UI.
 4. UI Components - Building HTML/CSS Controls.
 5. View Components - CRUD List Operations in the UI.
-6. A walk through detailing how to add weather stations and weather station data to the application.
 
-This article looks in detail at building reusable CRUD presentation layer components, specifically Edit and View functionality - and using them in Server and WASM projects.  There are significant changes since the first release.
+This article looks in detail at building reusable CRUD presentation layer components, specifically Edit and View functionality.  There are significant changes since the first release.
 
-I find it interesting that most programmers try and automate Edit And View forms by building a control line builder rather than boilerplating everything else. Most forms are unique to their record set.  Certain fields can be grouped together and put on the same line.  Text fields change in length depending on how many characters they need.  Builders complicate linkages between the control, the dataclass instance and validation.  For those reasons there's no form builder here, just a set of libary UI component classes to standardise form building.
+I find it interesting that most programmers try and automate Edit And View forms by building a control builder rather than boilerplating everything else. Most forms are unique to their record set.  Certain fields can be grouped together and put on the same line.  Text fields change in length depending on how many characters they need.  Building a factory to handle this, plus the added complication of linkages between the control, the dataclass instance and validation, doesn't seem worth it.  The configuration dataset becomes more complicated than the form it's trying to mimic.  For those reasons there's no form builder here, just a set of libary UI component classes to standardise form building.
 
-## Sample Project, Code and Links
+## Sample Project, Code and 
 
 The repository for the articles has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
 
@@ -35,7 +34,7 @@ There's a SQL script in /SQL in the repository for building the database.  The a
 
 [You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
 
-Several custom controls are used in the forms for which there are separate articles:
+Several custom controls are used in the forms.  The detail on these is covered in separate articles:
 
 - [EditFormState Control](https://www.codeproject.com/Articles/5297299/A-Blazor-Edit-Form-State-Control)
 - [EditValidationState Control](https://www.codeproject.com/Articles/5297302/A-Blazor-Validation-Control) 
@@ -48,7 +47,7 @@ All UI components inherit from `ComponentBase`.  All source files can be viewed 
 
 ### RecordFormBase
 
-`RecordFormBase` is the base abstract class used by the record forms.  It inherits from `ComponentBase`.  Record forms can be created in several contexts.  In this application there are three:
+`RecordFormBase` is the base abstract class used by the record forms.  It inherits from `ComponentBase`.  Record forms can be created in several contexts:
  
 1. As the root component in a RouteView, where the RouteView passes the form the `Id` via a Parameter.
 2. In a modal dialog within a list or other component.  The ID is passed to the form through a `DialogOptions` class.  
@@ -283,8 +282,6 @@ The majority of the work is in the Razor code.
 3. Column size dictated control size.
 4. `UILoader` only loads it's content when we have a record to display.
 
-> This now looks very much like an XML editor configuration file!
-
 ```html
 @namespace Blazor.Database.Components
 @inherits RecordFormBase<WeatherForecast>
@@ -368,12 +365,12 @@ public partial class WeatherForecastViewerForm : RecordFormBase<WeatherForecast>
 ```
 The Razor file is shown below.  It's based on the standard Blazor EditForm with some additional controls.  The same comments made on the Viewer apply here.  In addition:
 
-1. `InlineDialog` is a form locking control.  It's turned on and off by the `_isInlineDirty` property.  Go to the demo site and edit a record to see it in action. It only works when the form isn't in a modal context.
-2. `EditFormState` is a control that tracks the form state, i.e. whether the record being edited is dirty or clean against the original record values when the form was loaded.  It links with `InlineDialog` to control form locking.
+1. `InlineDialog` is a form locking control.  It's enabled by the `_isInlineDirty` property.  Go to the demo site and edit a record to see it in action. It's only enabled when the form isn't in a modal context.
+2. `EditFormState` is a control that tracks the form state, i.e. the state of the record against the original when the form was loaded.  It links with `InlineDialog` to control form locking.
 3. `ValidationFormState` is a custom validation control.
-4. The buttons tie into the boolena control properties to manage their state.
+4. The buttons are tied to the boolean control properties to manage their state.
 
-The custom controls are covered in separate articles that are referenced in the Links section.  I haven't abstracted this further so you can see a full form in action.  You can move all the Title, Edit Form and button sections into a FormWrapper component. 
+The custom controls are covered in separate articles referenced in the Links section.  I haven't abstracted this further so you can see a full form in action.  You can move all the Title, Edit Form and button sections into a FormWrapper component. 
 
 ```html
 @namespace Blazor.Database.Components
@@ -500,13 +497,14 @@ The editor is exactly the same, but declares the form `WeatherForecastEditorForm
 ```
 
 ### Wrap Up
-That wraps up this article.  We've shown how to build boilerplate code into base forms and how to implement viewer and editor Forms.  We'll look in more detail at the list forms and how the viewr and editors are called in a separate article.   
+That wraps up this article.  We've shown how to build boilerplate code into base forms and how to implement viewer and editor forms.  We'll look in more detail at the list forms and how the viewer and editors are called in a separate article.   
 Some key points to note:
-1. The Blazor Server and Blazor WASM code is the same - it's in the common library.
+1. The Blazor Server and Blazor WASM code is the same.
 2. Almost all the functionality is implemented in library components.  Most of the application code is Razor markup for the individual record fields.
 3. The Razor files contains controls, not HTML.
-4. Async functionality in used through.
+4. Async in used through.
 
+If you're reading this article well into the future, check the readme in the repository for the latest version of the article set.
 
 ## History
 

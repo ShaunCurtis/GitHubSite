@@ -22,7 +22,6 @@ This article is the fifth in a series on Building Blazor Database Applications. 
 3. View Components - CRUD Edit and View Operations in the UI.
 4. UI Components - Building HTML/CSS Controls.
 5. View Components - CRUD List Operations in the UI.
-6. A walk through detailing how to add weather stations and weather station data to the application.
 
 This article looks in detail at building reusable List UI components and deploying them in both Server and WASM projects.
 
@@ -101,7 +100,7 @@ The code is shown below
 
 ### Paging and Sorting
 
-Paging and sorting is implemented by a `Paginator` class that resides in the ControllerService.  There are UI components that interact with the `Paginstor`: `PaginatorControl` and `SortControl`.
+Paging and sorting is implemented by a `Paginator` class that resides in the ControllerService.  There are UI components that interact with the `Paginator`: `PaginatorControl` and `SortControl`.
 
 You can see `PaginatorControl` in use in a list form - here in the left side of a button row at the bottom of the form
 
@@ -133,7 +132,7 @@ And `SortControl` in action in the header row of a list form.
 
 #### Paginator
 
-The Controller Service holds the `Paginator` instance used by list forms.  The code is self explanatory, providing the functionality for paging operations.  It's passed to the Data Service to retrieve the correct sorted page.
+The Controller Service holds the `Paginator` instance used by list forms.  The code is self explanatory, providing the functionality for paging operations.  It's passed to the Data Service to retrieve the correct sorted page through the `PaginatorData` class.
 
 ```csharp
 public class Paginator
@@ -207,8 +206,35 @@ public class Paginator
 
     public void NotifySortingChanged()
         => this.ToPage(1, true);
+
+    public PaginatorData GetData => new PaginatorData()
+    {
+        Page = this.Page,
+        PageSize = this.PageSize,
+        BlockSize = this.BlockSize,
+        RecordCount = this.RecordCount,
+        SortColumn = this.SortColumn,
+        SortDescending = this.SortDescending
+    };
 }
 ```
+
+#### PaginatorData
+
+This is the class used to pass data into the dat services.  This has to be passed via json though the api so "keep it simple"/
+
+```csharp
+    public class PaginatorData
+    {
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 25;
+        public int BlockSize { get; set; } = 10;
+        public int RecordCount { get; set; } = 0;
+        public string SortColumn { get; set; } = string.Empty;
+        public bool SortDescending { get; set; } = false;
+    }
+```
+
 #### PaginatorControl
 
 The code again is self-explanatory, building out a Bootstrap ButtonGroup.  I've kept away from using icons, you can if you wish.
@@ -607,6 +633,7 @@ That wraps up this article.  Some key points to note:
 2. 90% plus functionality is implemented in the library components as boilerplate generic code.  Most of the application code is Razor markup for the individual record forms.
 3. Async functionality is used throughout.
 
+If you're reading this article well into the future, check the readme in the repository for the latest version of the article set.
     
 ## History
 

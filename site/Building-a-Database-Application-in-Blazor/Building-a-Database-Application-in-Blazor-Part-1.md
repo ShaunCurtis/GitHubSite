@@ -17,14 +17,13 @@ This set of articles describes a framework for building and structuring Database
 
 It's just **A** framework.  I make no recommendations: use it or abuse it.  It's what I use on my projects.  It's lightly opinionated: using out-of-the-box Blazor/Razor/DotNetCore systems and toolkits whereever possible.  The CSS framework is a lightly customized version of BootStrap. 
  
-There are 6 articles describing various aspects of the framework and coding patterns used:
+There are 5 articles describing various aspects of the framework and coding patterns used:
 
 1. Project Structure and Framework - a bit of an introduction.
 2. Services - Building CRUD Data Layers.
 3. View Components - CRUD Edit and View Operations in the UI.
 4. UI Components - Building HTML/CSS Controls.
 5. View Components - CRUD List Operations in the UI.
-6. Stepping out - A walk through detailing how to add records to the application.
 
 The articles have changed drastically since their original release:
 
@@ -492,6 +491,8 @@ Some key points to note:
 1. You can build your code with common code for Server and WASM projects.  With care you can write an application that can be deployed either way as is the case with this project.
 2. Both WASM and Server can be run from the same web site, and you can switch between the two.
 3. Be very careful about the terminology.  Understand the different meanings of "Page".
+
+If you're reading this article well into the future, check the readme in the repository for the latest version of the article set.
 
 ## History
 

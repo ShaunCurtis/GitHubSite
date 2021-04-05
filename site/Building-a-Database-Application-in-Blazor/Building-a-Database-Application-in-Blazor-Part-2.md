@@ -12,7 +12,7 @@ published: 2020-07-01
 This article and all the others in this series is a building site.  Total revamp.  See CodeProject for the most recent released version which is very out-of-date
 :::
 
-This the second article in a series on Building Blazor Database Applications.  It describes how to build the data and business logic layers into boilerplate library code that makes deploying application specific data services simple.  It is a total rewrite from earlier releases.
+This the second article in a series on Building Blazor Database Applications.  It describes how to bouilerplate the data and business logic layers into generic library code that makes deploying application specific data services simple.  It is a total rewrite from earlier releases.
 
 The articles in the series are:
 
@@ -21,11 +21,10 @@ The articles in the series are:
 3. View Components - CRUD Edit and View Operations in the UI.
 4. UI Components - Building HTML/CSS Controls.
 5. View Components - CRUD List Operations in the UI.
-6. A walk through detailing how to add weather stations and weather station data to the application.
 
 ## Repository and Database
 
-The repository for the articles has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
+The repository has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
 
 There's a SQL script in /SQL in the repository for building the database.  The application can use either a real SQL database or an in-memory SQLite database.
 
@@ -33,7 +32,7 @@ There's a SQL script in /SQL in the repository for building the database.  The a
 
 ## Objective
 
-Before diving into specifics, our goal is to get the library code to a point were declaring a UI controller service is as simple as this:
+Let's look at our goal before diving into specifics: build library code so declaring a standard UI controller service is as simple as this:
 
 ```csharp
     public class WeatherForecastControllerService : FactoryControllerService<WeatherForecast>
@@ -42,7 +41,7 @@ Before diving into specifics, our goal is to get the library code to a point wer
     }
 ```
 
-And a database `DbContext` that looks like:
+And declaring a database `DbContext` that looks like:
 
 ```csharp
     public class LocalWeatherDbContext : DbContext
@@ -57,14 +56,13 @@ And a database `DbContext` that looks like:
     }
 ```
 
-So the process for adding a new database entity is:
+Our process for adding a new database entity is:
 1. Add the necessary table to the database.
 2. Define a Dataclass.
 2. Define a `DbSet` in the `DbContext`.
-3. Define a `public class nnnnnnControllerService : FactoryControllerService<nnnnnn>` Service and register it with the Services container.
+3. Define a `public class nnnnnnControllerService` Service and register it with the Services container.
 
 There will be complications with certain entities, but that doesn't invalidate the approach - 80%+ of the code in the library.
-
 
 ## Services
 
@@ -79,7 +77,7 @@ Blazor Singleton and Transient services are relatively straight forward.  You ca
 1. In Blazor Server in `Startup.cs` in `ConfigureServices`
 2. In Blazor WASM in `Program.cs`.
 
-The solution uses a Service Collection extension method `AddApplicationServices` to keep all the application specific services under one roof.
+The solution uses a Service Collection extension methods such as `AddApplicationServices` to keep all the application specific services under one roof.
 
 ```csharp
 // Blazor.Database.Web/startup.cs
@@ -88,15 +86,16 @@ public void ConfigureServices(IServiceCollection services)
     services.AddRazorPages();
     services.AddServerSideBlazor();
     // the local application Services defined in ServiceCollectionExtensions.cs
-    services.AddApplicationServices(Configuration);
+    // services.AddApplicationServices(this.Configuration);
+    services.AddInMemoryApplicationServices(this.Configuration);
 }
 ```
 
-`AddApplicationServices` is shown below.  It's declared as a static extension method within a static class.  There are two methods, one for each database configuration, in Server mode.
+Extensions are declared as a static extension methods in a static class.  The two methods are shown below.
 
 
 ```csharp
-//Blazor/Database/Web/Extensions/ServiceCollectionExtensions.cs
+//Blazor.Database.Web/Extensions/ServiceCollectionExtensions.cs
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
@@ -121,7 +120,7 @@ public static class ServiceCollectionExtensions
 }
 ```
 
- and `program.cs` in WASM mode:
+ In the WASM project in `program.cs`:
 
 ```csharp
 // program.cs
@@ -131,14 +130,14 @@ public static async Task Main(string[] args)
     // Added here as we don't have access to builder in AddApplicationServices
     builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
     // the Services for the Application
-    builder.Services.AddApplicationServices();
+    builder.Services.AddWASMApplicationServices();
     .....
 }
 ```
 
 ```csharp
 // ServiceCollectionExtensions.cs
-public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+public static IServiceCollection AddWASMApplicationServices(this IServiceCollection services)
 {
     services.AddScoped<IFactoryDataService, FactoryWASMDataService>();
     services.AddScoped<WeatherForecastControllerService>();
@@ -148,7 +147,7 @@ public static IServiceCollection AddApplicationServices(this IServiceCollection 
 Points:
 1. There's an `IServiceCollection` extension method for each project/library to encapsulate the specific services needed for the project.
 2. Only the data layer service is different.  The Server version, used by both the Blazor Server and the WASM API Server, interfaces with the database and Entity Framework.  It's scoped as a Singleton.
-3. Everything is async.  We use a `DbContextFactory` and manage `DbContext` instances as we use and release them.  The WASM Client version uses `HttpClient` (which is a scoped service) to make calls to the API and is therefore scoped.
+3. Everything is async, using a `DbContextFactory` and manage `DbContext` instances as they are used.  The WASM Client version uses `HttpClient` (which is a scoped service) to make calls to the API and is therefore scoped.
 4. the `FactoryDataService` implementing `IFactoryDataService` processes all data requests through generics.  `TRecord` defines which dataset is retrieved and returned.   The factory services boilerplate all core data service code.
 5. There's both a real SQL Database and an in-memory SQLite `DbContext`.
 
@@ -156,7 +155,7 @@ Points:
 ### Generics
 
 The factory library code relies heavily on Generics.  Two generic entities are defined:
-1. `TRecord` represents a model record class.  It must be a class, implement `IDbRecord` and define an empty `new()`.  `TRecord` is used in the factory classes at the method level.
+1. `TRecord` represents a model record class.  It must be a class, implement `IDbRecord` and define an empty `new()`.  `TRecord` is used at the method level.
 2. `TDbContext` is the database context. It must inherit from the `DbContext` class.
 
 Class declarations look like this:
@@ -183,7 +182,7 @@ Before diving into the detail, let's look at the main CRUDL methods we need to i
 
 Keep these in mind as we work through this article.
 
-#### DbTaskResult
+### DbTaskResult
 
 Data layer CUD operations return a `DbTaskResult` object.  Most of the properties are self-evident.  It's designed to be consumed by the UI to build CSS Framework entities such as Alerts and Toasts.  `NewID` returns the new ID from a *Create* operation.
 
@@ -216,7 +215,7 @@ Data classes implement `IDbRecord`.
 
 ### WeatherForecast
 
-Here's the dataclass for a weatherforecast data entity.
+Here's the dataclass for a WeatherForecast data entity.
 
 Points:
 1. Entity Framework attributes used for property labelling.
@@ -284,7 +283,7 @@ The class is very basic, creating a `DbSet` per dataclass.  The DBSet must be th
 
 #### InMemoryWeatherDbContext
 
-The in-memory version is a little more complicated as it needs to build and populate the database on the fly.
+The in-memory version is a little more complicated, it needs to build and populate the database on the fly.
 
 ```csharp
     public class InMemoryWeatherDbContext : DbContext
@@ -341,7 +340,7 @@ The in-memory version is a little more complicated as it needs to build and popu
 
 #### DbContextExtensions
 
-We're using generics, so we need a way to get the `DbSet` for the dataclass declared as `TRecord`.  This is implemented as a extension method on `DbContext`.  For this to work, each `DbSet` should have the same name as the dataclass. `dbSetName` provides backup if the names differ.   
+We use generics, so we need a way to get the `DbSet` for the dataclass declared as `TRecord`.  This is implemented as a extension method on `DbContext`.  For this to work, each `DbSet` should have the same name as the dataclass. `dbSetName` provides backup if the names differ.   
 
 The method uses reflection to find the `DbSet` for `TRecord`.
 
@@ -368,13 +367,13 @@ public static DbSet<TRecord> GetDbSet<TRecord>(this DbContext context, string db
 
 #### IFactoryDataService
 
-`IFactoryDataService` defines the base CRUDL methods DataServices must implement.  Data Services are defined in the Services container using the interface and consumed through the interface.  Note `TRecord` in each method and it's constraints.  There are two `GetRecordListAsync` methods.  One gets the whole dataset, the other uses a `Paginstor` object to page and sort the dataset.  More on the `Paginator` in articles 5.
+`IFactoryDataService` defines the base CRUDL methods DataServices must implement.  Data Services are defined in the Services container using the interface and consumed through the interface.  Note `TRecord` in each method and it's constraints.  There are two `GetRecordListAsync` methods.  One gets the whole dataset, the other uses a `PaginstorData` object to page and sort the dataset.  More on the `Paginator` in articles 5.
 
 ```csharp
 public interface IFactoryDataService 
 {
     public Task<List<TRecord>> GetRecordListAsync<TRecord>() where TRecord : class, IDbRecord<TRecord>, new();
-    public Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator) where TRecord : class, IDbRecord<TRecord>, new();
+    public Task<List<TRecord>> GetRecordListAsync<TRecord>(PaginatorData paginatorData) where TRecord : class, IDbRecord<TRecord>, new();
     public Task<TRecord> GetRecordAsync<TRecord>(int id) where TRecord : class, IDbRecord<TRecord>, new();
     public Task<int> GetRecordListCountAsync<TRecord>() where TRecord : class, IDbRecord<TRecord>, new();
     public Task<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record) where TRecord : class, IDbRecord<TRecord>, new();
@@ -397,7 +396,7 @@ public abstract class FactoryDataService: IFactoryDataService
 
     public virtual Task<List<TRecord>> GetRecordListAsync<TRecord>() where TRecord : class, IDbRecord<TRecord>, new()
         => Task.FromResult(new List<TRecord>());
-    public virtual Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator) where TRecord : class, IDbRecord<TRecord>, new()
+    public virtual Task<List<TRecord>> GetRecordListAsync<TRecord>(PaginatorData paginatorData) where TRecord : class, IDbRecord<TRecord>, new()
         => Task.FromResult(new List<TRecord>());
     public virtual Task<TRecord> GetRecordAsync<TRecord>(int id) where TRecord : class, IDbRecord<TRecord>, new()
         => Task.FromResult(new TRecord());
@@ -430,30 +429,30 @@ public class FactoryServerDataService<TDbContext> : FactoryDataService where TDb
             .GetDbSet<TRecord>()
             .ToListAsync() ?? new List<TRecord>();
 
-    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator)
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(PaginatorData paginatorData)
     {
-        var startpage = paginator.Page <= 1
+        var startpage = paginatorData.Page <= 1
             ? 0
-            : (paginator.Page - 1) * paginator.PageSize;
+            : (paginatorData.Page - 1) * paginatorData.PageSize;
         var context = this.DBContext.CreateDbContext();
         var dbset = this.DBContext
             .CreateDbContext()
             .GetDbSet<TRecord>();
-        var x = typeof(TRecord).GetProperty(paginator.SortColumn);
-        var isSortable = typeof(TRecord).GetProperty(paginator.SortColumn) != null;
+        var x = typeof(TRecord).GetProperty(paginatorData.SortColumn);
+        var isSortable = typeof(TRecord).GetProperty(paginatorData.SortColumn) != null;
         if (isSortable)
         {
             var list = await dbset
-                .OrderBy(paginator.SortDescending ? $"{paginator.SortColumn} descending" : paginator.SortColumn)
+                .OrderBy(paginatorData.SortDescending ? $"{paginatorData.SortColumn} descending" : paginatorData.SortColumn)
                 .Skip(startpage)
-                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
             return list;
         }
         else
         {
             var list = await dbset
                 .Skip(startpage)
-                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
             return list;
         }
     }
@@ -510,9 +509,9 @@ public class FactoryWASMDataService : FactoryDataService, IFactoryDataService
     public override async Task<List<TRecord>> GetRecordListAsync<TRecord>()
         => await this.HttpClient.GetFromJsonAsync<List<TRecord>>($"{GetRecordName<TRecord>()}/list");
 
-    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator)
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(PaginatorData paginatorData)
     {
-        var response = await this.HttpClient.PostAsJsonAsync($"{GetRecordName<TRecord>()}/listpaged", paginator);
+        var response = await this.HttpClient.PostAsJsonAsync($"{GetRecordName<TRecord>()}/listpaged", paginatorData);
         return await response.Content.ReadFromJsonAsync<List<TRecord>>();
     }
 
@@ -577,7 +576,7 @@ public class WeatherForecastController : ControllerBase
 
     [MVC.Route("weatherforecast/listpaged")]
     [HttpGet]
-    public async Task<List<WeatherForecast>> Read([FromBody] Paginator data) => await DataService.GetRecordListAsync<WeatherForecast>( paginator: data);
+    public async Task<List<WeatherForecast>> Read([FromBody] PaginatorData data) => await DataService.GetRecordListAsync<WeatherForecast>( paginator: data);
 
     [MVC.Route("weatherforecast/count")]
     [HttpGet]
@@ -629,26 +628,26 @@ public class FactoryServerInMemoryDataService<TDbContext> : FactoryDataService, 
         return await dbset.ToListAsync() ?? new List<TRecord>();
     }
 
-    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(Paginator paginator)
+    public override async Task<List<TRecord>> GetRecordListAsync<TRecord>(PaginatorData paginatorData)
     {
-        var startpage = paginator.Page <= 1
+        var startpage = paginatorData.Page <= 1
             ? 0
-            : (paginator.Page - 1) * paginator.PageSize;
+            : (paginatorData.Page - 1) * paginatorData.PageSize;
         var dbset = _dbContext.GetDbSet<TRecord>();
-        var isSortable = typeof(TRecord).GetProperty(paginator.SortColumn) != null;
+        var isSortable = typeof(TRecord).GetProperty(paginatorData.SortColumn) != null;
         if (isSortable)
         {
             var list = await dbset
-                .OrderBy(paginator.SortDescending ? $"{paginator.SortColumn} descending" : paginator.SortColumn)
+                .OrderBy(paginatorData.SortDescending ? $"{paginatorData.SortColumn} descending" : paginatorData.SortColumn)
                 .Skip(startpage)
-                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
             return list;
         }
         else
         {
             var list = await dbset
                 .Skip(startpage)
-                .Take(paginator.PageSize).ToListAsync() ?? new List<TRecord>();
+                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
             return list;
         }
     }
@@ -819,7 +818,7 @@ public abstract class FactoryControllerService<TRecord> : IDisposable, IFactoryC
     /// Method to get a recordset
     public async Task GetRecordsAsync()
     {
-        this.Records = await DataService.GetRecordListAsync<TRecord>(this.Paginator);
+        this.Records = await DataService.GetRecordListAsync<TRecord>(this.Paginator.GetData);
         this.Paginator.RecordCount = await GetRecordListCountAsync();
         this.ListHasChanged?.Invoke(null, EventArgs.Empty);
     }
@@ -888,12 +887,14 @@ public class WeatherForecastControllerService : FactoryControllerService<Weather
 
 ## Wrap Up
 
-This article shows how the data services can be built using a set of abstract classes that implement much of the boilerplate code for CRUDL operations.  I've purposely kept error checking in the code to a minimum, to make it much more readable.  You can imlement as little or as much as you like.
+This article shows how the data services can be built using a set of abstract classes implementing boilerplate code for CRUDL operations.  I've purposely kept error checking in the code to a minimum, to make it much more readable.  You can implement as little or as much as you like.
 
 Some key points to note:
 1. Aysnc code is used wherever possible.  The data access functions are all async.
 2. Generics make much of the boilerplating possible.  They create complexity, but are worth the effort.
 3. Interfaces are crucial for Dependancy Injection and UI boilerplating.
+
+If you're reading this article well into the future, check the readme in the repository for the latest version of the article set.
 
 ## History
 
