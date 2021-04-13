@@ -19,13 +19,17 @@ Last Updated: 2021-04-09
 2. Add Dynamic Routes - add and remove extra routes at runtime.
 3. Add Dynamic RouteViews - changing out the RouteView component directly without Routing.
 
-![EditForm](https://shauncurtis.github.io/siteimages/Articles/App/ScreenShot.png)
+![EditForm](https://shauncurtis.github.io/siteimages/Articles/App/Screenshot.png)
 
 ## Code and Examples
 
-[The repository for this project is here](https://github.com/ShaunCurtis/CEC.Blazor.RouteView).
+[The repository for this project is here](https://github.com/ShaunCurtis/CEC.Blazor.RouteView), and is based on my [Blazor All In One Template](https://github.com/ShaunCurtis/AllinOne).
 
-The example site is here [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/).
+You can view a demo of the components running on the Blazor.Database site here [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/) from the highlighted links.
+
+![EditForm](https://shauncurtis.github.io/siteimages/Articles/App/DemoSite.png)
+
+
 
 ## The Blazor Application
 
