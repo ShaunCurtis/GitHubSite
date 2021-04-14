@@ -2,40 +2,36 @@
 title: Adding Dynamic Routing, Layouts and RouteViews to the Blazor App Component
 date: 2021-04-09
 oneliner: This article shows how to add Dynamic Routing, Layouts and RouteViews to the Blazor App Component.
-precis: App is the Root Component in the Balzor UI.  This article shows how to to add Dynamic Routing, Layouts and RouteViews to App.
-published: 2021-04-11
+precis: App is the Root Component in the Blazor UI.  This article shows how to to add Dynamic Routing, Layouts and RouteViews to App.
+published: 2021-04-13
 ---
 
 # Adding Dynamic Routing, Layouts and RouteViews to the Blazor App Component
 
-Publish Date: 2021-04-09
-Last Updated: 2021-04-09
+Publish Date: 2021-04-13
+Last Updated: 2021-04-13
 
 ## Overview
 
-`App` is the Blazor UI root component.  This article looks how it functions and demonstrates how to:
+`App` is the Blazor UI root component.  This article looks at how it works and demonstrates how to:
 
-1. Add Dynamic Layouts - changing the default layout at runtime.
+1. Add Dynamic Layouts - change the default layout at runtime.
 2. Add Dynamic Routes - add and remove extra routes at runtime.
-3. Add Dynamic RouteViews - changing out the RouteView component directly without Routing.
+3. Add Dynamic RouteViews - change the RouteView component directly without Routing.
 
 ![EditForm](https://shauncurtis.github.io/siteimages/Articles/App/Screenshot.png)
 
 ## Code and Examples
 
-[The repository for this project is here](https://github.com/ShaunCurtis/CEC.Blazor.RouteView), and is based on my [Blazor All In One Template](https://github.com/ShaunCurtis/AllinOne).
+[The repository for this project is here](https://github.com/ShaunCurtis/CEC.Blazor.RouteView), and is based on my [Blazor AllInOne Template](https://github.com/ShaunCurtis/AllinOne).
 
-You can view a demo of the components running on the Blazor.Database site here [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/) from the highlighted links.
-
-![EditForm](https://shauncurtis.github.io/siteimages/Articles/App/DemoSite.png)
-
-
+You can view a demo of the components running on my Blazor.Database site here [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/) from the highlighted links.
 
 ## The Blazor Application
 
 `App` is normally defined in *App.razor*.  The same component is used in both Web Assembly and Server contexts.
 
-In Web Assembly context the SPA startup page contains an element placeholder Which gets replaced when `Program` starts in the Web Assembly context.
+In the Web Assembly context the SPA startup page contains an element placeholder which is replaced when `Program` starts in the Web Assembly context.
 
 ```html
 ....
@@ -44,13 +40,13 @@ In Web Assembly context the SPA startup page contains an element placeholder Whi
     ...
 </body>
 ``` 
-The code line that defines which element gets replaced with what is:
+The code line that defines the replacement in `Program` is:
 ```csharp
     // Replace the app id element with the component App
     builder.RootComponents.Add<App>("#app");
 ```
 
-In the Server context `App` is declared directly as a component in Razor.  It gets pre-rendered by the server and then updated by the Blazor Server client in the browser. 
+In the Server context `App` is declared directly as a Razor component in the Razor markup.  It gets pre-rendered by the server and then updated by the Blazor Server client in the browser. 
 
 ```html
 ...
@@ -64,7 +60,7 @@ In the Server context `App` is declared directly as a component in Razor.  It ge
 
 The `App` code is shown below.  It's a standard Razor component, inheriting from `ComponentBase`.
 
-`Router` is the local root component and sets `AppAssembly` to the assembly containing `Program`.  `Router` is only rendered when `App` starts. It trawls `Assembly` for all classes with a Route Attribute.  It registers with the `NavigationChanged` event on the NavigationManager Service.  On a navigation event it looks for a route matching the provided Uri.  If it finds one it renders the `Found` render fragment, otherwise it renders `NotFound`.
+`Router` is the local root component and sets `AppAssembly` to the assembly containing `Program`.  On initialization it trawls `Assembly` for all classes with a Route attribute and registers with the `NavigationChanged` event on the NavigationManager Service.  On a navigation event it tries to match the navigation Url to a route.  If it finds one, it renders the `Found` render fragment, otherwise it renders `NotFound`.
 
 ```html
 <Router AppAssembly="@typeof(Program).Assembly" PreferExactMatches="@true">
@@ -79,13 +75,13 @@ The `App` code is shown below.  It's a standard Razor component, inheriting from
 </Router>
 ```
 
-`RouteView` is declared within `Found`.  `RouteData` is set to the router's current `routeData` object and `DefaultLayout` set to an application Layout `Type`.  `RouteView` renders an instance of `RouteData.Type` as a component within either the page or default layout, and applies any parameters in `RouteData.RouteValues`.
+`RouteView` is declared within `Found`.  `RouteData` is set to the router's current `routeData` object and `DefaultLayout` set to an application Layout `Type`.  `RouteView` renders an instance of `RouteData.Type` as a component within either the a page specific layout or the default layout, and applies any parameters in `RouteData.RouteValues`.
 
-`NotFound` contains a `LayoutView` component, specifying a layout to use and child content to render.
+`NotFound` contains a `LayoutView` component, specifying a layout to render any child content in.
 
 ## RouteViewService
 
-`RouteViewService` is the state management service for the new components.  It's registered in the WASM and Server Services.  The Server version a Singleton, but if you have user specific requirments then you may need to make it scoped or have two separate services to manage application and user contexts.
+`RouteViewService` is the state management service for the new components.  It's registered in the WASM and Server Services.  The Server version can be either a Singleton or Scoped, depending on the application needs.  You could have two separate services to manage application and user contexts separately.
 
 ```csharp
 public class RouteViewService 
@@ -110,9 +106,9 @@ builder.Services.AddScoped<RouteViewService>();
 
 `RouteViewManager` replaces `RouteView`.
 
-It's all `RouteView`'s functionality.  It's rather large to show in it's entirety so We'll look at the key functionality in sections.
+It's implements `RouteView`'s functionality.  It's too large to show in it's entirety so We'll look at the key functionality in sections.
 
-When a routing event occurs, `RouteViewManager.RouteData` is updated and `Router` is re-rendered.  The `Renderer` calls `SetParametersAsync` on  `RouteViewManager`, passing in the updated *Parameters*.  `SetParametersAsync` checks it has a valid `RouteData`, sets `_ViewData` to null and renders the component.  `_ViewData` is set to null to ensure the component loads the route. A valid `ViewData` object has precedence over a valid RouteData object in the render process.
+When a routing event occurs, `RouteViewManager.RouteData` is updated and `Router` re-rendered.  The `Renderer` calls `SetParametersAsync` on  `RouteViewManager`, passing the updated *Parameters*.  `SetParametersAsync` checks it has a valid `RouteData`, sets `_ViewData` to null and renders the component.  `_ViewData` is set to null to ensure the component loads the route. A valid `ViewData` object has precedence over a valid `RouteData` object in the render process.
   
 ```csharp
 public await Task SetParametersAsync(ParameterView parameters)
@@ -151,9 +147,9 @@ For those curious, `InvokeAsync` looks like this.
 protected Task InvokeAsync(Action workItem) => _renderHandle.Dispatcher.InvokeAsync(workItem);
 ```
 
-The Component content is built as a set of components, each defined as a `RenderFragment`.
+`RouteViewManager`s content is built as a set of components, each defined within a `RenderFragment`.
 
-`_renderDelegate` defines the local root component.  It cascades itself and then adds the `_layoutViewFragment` fragment as it's `ChildContent`.
+`_renderDelegate` defines the local root component, cascading itself and adding the `_layoutViewFragment` fragment as it's `ChildContent`.
 
 ```csharp
 private RenderFragment _renderDelegate => builder =>
@@ -169,7 +165,7 @@ private RenderFragment _renderDelegate => builder =>
 };
 ```
 
-`_layoutViewFragment` selects and then adds the layout and sets `_renderComponentWithParameters` as it's `ChildContent`.
+`_layoutViewFragment` selects the layout, adds it and sets `_renderComponentWithParameters` as it's `ChildContent`.
 
 ```csharp
 private RenderFragment _layoutViewFragment => builder =>
@@ -185,7 +181,7 @@ private RenderFragment _layoutViewFragment => builder =>
 };
 ```
 
-`_renderComponentWithParameters` adds the view/route component with it's parameters.  A valid view take precedence over a valid route.
+`_renderComponentWithParameters` selects the view/route component to render and adds it with the supplied parameters.  A valid view take precedence over a valid route.
 
 ```csharp
 private RenderFragment _renderComponentWithParameters => builder =>
@@ -234,7 +230,7 @@ public partial class Index : Microsoft.AspNetCore.Components.ComponentBase
 ....
 ```
 
-To change Layouts dynamically we need somewhere to store the layout - `RouteViewService`. It can be set from any component that injects the service.
+To change Layouts dynamically we use `RouteViewService` to store the layout. It can be set from any component that injects the service.
 
 ```csharp
 public class RouteViewService
@@ -244,8 +240,7 @@ public class RouteViewService
 }
 ```
 
-The layout is used by `_layoutViewFragment` in `RouteViewManager`.  It uses the null coalescing operator to get the layout on precedence.
-
+`_layoutViewFragment` in `RouteViewManager` chooses the layout - `RouteViewService.Layout` is set above the default layout in precedence.
 ```csharp
 private RenderFragment _layoutViewFragment => builder =>
 {
@@ -260,11 +255,11 @@ private RenderFragment _layoutViewFragment => builder =>
 };
 ```
 
-We'll see changing the layout in action later in the example page.
+Changing in the layout is demonstrated in the demo pages.
 
 ## Dynamic Routing
 
-Dynamic Routing is a little more complicated.  `Router` is a sealed box, so it's take it or re-write it.  Unless you must, don't.  We're not looking to change existing routes, just add and remove new dynamic routes.
+Dynamic Routing is a little more complicated.  `Router` is a sealed box, so it's take it or re-write it.  Unless you must, don't re-write it.  We're not looking to change existing routes, just add and remove new dynamic routes.
 
 Routes are defined at compile time and are used internally within the `Router` Component.
 
@@ -283,30 +278,28 @@ public partial class Index : Microsoft.AspNetCore.Components.ComponentBase
 .....
 ```
 
-When `Router` first renders it trawls any assemblies provided and builds a route dictionary of component/route pairs.
+When `Router` initializes it trawls any assemblies provided and builds a route dictionary of component/route pairs.
 
-You can get this list like this:
+You can get a list of route attribute components like this:
 
 ```csharp
 static public IEnumerable<Type> GetTypeListWithCustomAttribute(Assembly assembly, Type attribute)
     => assembly.GetTypes().Where(item => (item.GetCustomAttributes(attribute, true).Length > 0));
 ```
 
-On initial render the Router register a delegate with the `NavigationManager.LocationChanged` event.  Thos delegate looks up routes and triggers render events on the `Router`. If it finds a route it renders `Found` which renders our new `RouteViewManager`.  `RouteViewManager` builds out the Layout and adds a new instance of the component defined in `RouteData`.
+On initial render the Router register a delegate with the `NavigationManager.LocationChanged` event.  This delegate looks up routes and triggers render events on the `Router`. If it finds a route it renders `Found` which renders our new `RouteViewManager`.  `RouteViewManager` builds out the Layout and adds a new instance of the component defined in `RouteData`.
 
-When it doesn't find a route, what it does depends on the `IsNavigationIntercepted` property of the `LocationChangedEventArgs` provided by the event:
+When it doesn't find a route, what happens depends on the `IsNavigationIntercepted` property of the `LocationChangedEventArgs` provided by the event:
 
-1. True if Intercepts navigation in the DOM - anchors, etc.
-2. True A UI component calls it's `NavigateTo` method and sets `ForceLoad`.
-3. False A UI component calls it's `NavigateTo` method and sets `ForceLoad`.
+1. True if it intercepts navigation in the DOM - anchors, etc.
+2. True if a UI component calls it's `NavigateTo` method and sets `ForceLoad`.
+3. False if a UI component calls it's `NavigateTo` method and sets `ForceLoad`.
 
-So, if we can avoid causing a hard navigation event in `Router`, we can add a component in `NotFound` to handle additional dynamic routing.  Not too difficult, it is our code!  There's an enhanced `NavLink` control to help covered later.  In the event of a hard navigation event, routing will still work, but the application reloads.  Any rogue navigation events should be detected during testing.
+If we can avoid causing a hard navigation events in `Router`, we can add a component in `NotFound` to handle additional dynamic routing.  Not too difficult, it is our code!  There's an enhanced `NavLink` control to help control navigation - covered later.  In the event of a hard navigation event, routing will still work, but the application reloads.  Any rogue navigation events should be detected and fixed during testing.
 
 ### CustomRouteData
 
-`CustomRouteData` holds the information needed to make routing decisions.
-
-The class looks like this with inline detailed explanations.  
+`CustomRouteData` holds the information needed to make routing decisions.  The class looks like this with inline detailed explanations.  
 
 ```csharp
     public class CustomRouteData
@@ -402,7 +395,7 @@ For those interested, `TypeSwitch` looks like this (thanks to *cdiggins* on Stac
 
 ## Updates to the RouteViewService
 
-The relevant sections in `RouteViewService` are shown below. `Routes` holds the list of custom routes - it's deliberately left open for customization. 
+The updated sections in `RouteViewService` are shown below. `Routes` holds the list of custom routes - it's deliberately left open for customization. 
 
 ```csharp
 public List<CustomRouteData> Routes { get; private set; } = new List<CustomRouteData>();
@@ -468,9 +461,9 @@ private RenderFragment _ViewFragment => builder =>
 
 Switching the RouteView without routing has several applications.  These are some I've used:
 
-1. Hide direct access to the page.  It can only be accessed within the application.
+1. Hide direct access to a page.  It can only be accessed within the application.
 2. Multipart forms/processes with a single entry point.  The state of the saved form/process dictates which form gets loaded.
-3. Context dependant forms or information.  Login/logout/signup is a good example.  The same Url but with a different routeviews loaded.
+3. Context dependant forms or information.  Login/logout/signup is a good example.  The same Url but with a different routeviews loaded depending on the context.
 
 ### ViewData
 
@@ -606,17 +599,23 @@ private RenderFragment _renderComponentWithParameters => builder =>
 
 ## Example Pages
 
-The application has several RouteViews/Pages to demonstrate the new components.  You can review the source code in the Repo.
+The application has RouteViews/Pages to demonstrate the new components.  You can review the source code in the Repo.  You can also see the pages on the Demo Site.
+
+![EditForm](https://shauncurtis.github.io/siteimages/Articles/App/DemoSite.png)
 
 ### RouteViewer.razor
+
+[https://cec-blazor-database.azurewebsites.net/routeviewer](https://cec-blazor-database.azurewebsites.net/routeviewer)
 
 This demonstrates:
 
 1. Adding routes dynamically to the Application.  Choose a page to add a custom route for, add a route name and click *Go To Route*.
-2. Loading a `RouteView` without navigation.  click on *Go To FetchData*.  The *FetchData* routeview is displayed, but the Url doesn't change.
-3. Changing the default Layout.  click on *Red Layout* and the layout will change to red.  Basic FetchData has a specific layout defined so it will use the original layout.  Click om *Normal Layout* to change back.
+2. Loading a `RouteView` without navigation.  Choose a Page and click on *Go To View*.  The page is displayed, but the Url doesn't change!  Confusing, but it demos the principle.
+3. Changing the default Layout.  Click on *Red Layout* and the layout will change to red.  Basic FetchData has a specific layout defined so it will use the original layout.  Click on *Normal Layout* to change back.
 
 ### Form.Razor
+
+[https://cec-blazor-database.azurewebsites.net/form](https://cec-blazor-database.azurewebsites.net/form)
 
 This demonstrates a multipart form.  There are four forms:
 1. *Form.Razor* the base and first form.
@@ -628,7 +627,7 @@ The forms link to data in the WeathForecastService which maintains the form stat
 
 ## Wrap Up
 
-Hopefully I've demonstrated how you can build functionality into the core Blazor framework.  None of the component are finished articles.  Use them and develop them as you wish.   
+Hopefully I've demonstrated the principles you can use to build the extra functionality into the core Blazor framework.  None of the components are finished articles.  Use them and develop them as you wish.   
 
- 
+If you're reading this article a long time into the future chack [here](https://shauncurtis.github.io/articles/A-Flexible-App.html) for the latest version 
 
