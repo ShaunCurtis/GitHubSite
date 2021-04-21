@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Blazor Notification Service Pattern</title>
+    <meta name="generator" content="VuePress 1.8.2">
+    
+    <meta name="description" content="">
+    
+    <link rel="preload" href="/assets/css/0.styles.b25df986.css" as="style"><link rel="preload" href="/assets/js/app.de94086e.js" as="script"><link rel="preload" href="/assets/js/2.0005fb99.js" as="script"><link rel="preload" href="/assets/js/15.50f29b11.js" as="script"><link rel="prefetch" href="/assets/js/10.1b1bac62.js"><link rel="prefetch" href="/assets/js/11.d5ccb284.js"><link rel="prefetch" href="/assets/js/12.041ebee5.js"><link rel="prefetch" href="/assets/js/13.32117bf8.js"><link rel="prefetch" href="/assets/js/14.846c76b5.js"><link rel="prefetch" href="/assets/js/16.1209f32e.js"><link rel="prefetch" href="/assets/js/17.05965361.js"><link rel="prefetch" href="/assets/js/18.0deb6c5a.js"><link rel="prefetch" href="/assets/js/19.c0b807a9.js"><link rel="prefetch" href="/assets/js/20.eca6b9de.js"><link rel="prefetch" href="/assets/js/21.83db0212.js"><link rel="prefetch" href="/assets/js/22.8c84fb58.js"><link rel="prefetch" href="/assets/js/23.e8ce4875.js"><link rel="prefetch" href="/assets/js/24.fd7b0084.js"><link rel="prefetch" href="/assets/js/25.cdf82bd3.js"><link rel="prefetch" href="/assets/js/26.f554011d.js"><link rel="prefetch" href="/assets/js/27.df20cf08.js"><link rel="prefetch" href="/assets/js/28.2318a9ac.js"><link rel="prefetch" href="/assets/js/29.628dd84b.js"><link rel="prefetch" href="/assets/js/3.1a98c051.js"><link rel="prefetch" href="/assets/js/30.47ff2eac.js"><link rel="prefetch" href="/assets/js/31.eb71eabe.js"><link rel="prefetch" href="/assets/js/32.c74d3c6a.js"><link rel="prefetch" href="/assets/js/33.19a01216.js"><link rel="prefetch" href="/assets/js/34.aed43787.js"><link rel="prefetch" href="/assets/js/35.b40f612a.js"><link rel="prefetch" href="/assets/js/36.ae14410d.js"><link rel="prefetch" href="/assets/js/37.74d7c586.js"><link rel="prefetch" href="/assets/js/38.54528dd5.js"><link rel="prefetch" href="/assets/js/39.e8c514e8.js"><link rel="prefetch" href="/assets/js/4.3083dbc5.js"><link rel="prefetch" href="/assets/js/40.5c97b972.js"><link rel="prefetch" href="/assets/js/41.7a1cf8ba.js"><link rel="prefetch" href="/assets/js/42.f449294e.js"><link rel="prefetch" href="/assets/js/43.432c7e84.js"><link rel="prefetch" href="/assets/js/44.d56e3403.js"><link rel="prefetch" href="/assets/js/45.c6081de4.js"><link rel="prefetch" href="/assets/js/5.28112fa8.js"><link rel="prefetch" href="/assets/js/6.50910651.js"><link rel="prefetch" href="/assets/js/7.90248bbe.js"><link rel="prefetch" href="/assets/js/8.d8750b3a.js"><link rel="prefetch" href="/assets/js/9.ab982ebf.js">
+    <link rel="stylesheet" href="/assets/css/0.styles.b25df986.css">
+  </head>
+  <body>
+    <div id="app" data-server-rendered="true"><div class="theme-container no-sidebar"><header class="navbar"><div class="sidebar-button"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" viewBox="0 0 448 512" class="icon"><path fill="currentColor" d="M436 124H12c-6.627 0-12-5.373-12-12V80c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12z"></path></svg></div> <a href="/" class="home-link router-link-active"></a> <div class="links"><div class="search-box"><input aria-label="Search" autocomplete="off" spellcheck="false" value=""> <!----></div> <!----></div></header> <div class="sidebar-mask"></div> <aside class="sidebar"><!---->  <!----> </aside> <main class="page"> <div class="theme-default-content content__default"><h1 id="blazor-notification-service-pattern"><a href="#blazor-notification-service-pattern" class="header-anchor">#</a> Blazor Notification Service Pattern</h1> <p>I'm always suprised by the hoops and amount of plumbing developers are prepared to do to get components to talk to each other.  almost always to make sure they are all up-to-date and displaying the latest set of information.</p> <p>For example, an editor window updates a list item, or adds a new one.  The list needs to update and the list count needs to update when the addition or update is saved.  Child components need to make callbacks to parents, who then need to trigger updates to other children.  Sound familiar?</p> <p>As things evolve the plumbing gets more convoluted and difficult to maintain or simply breaks.</p> <h2 id="the-notification-service-pattern"><a href="#the-notification-service-pattern" class="header-anchor">#</a> The Notification Service Pattern</h2> <p>There is a simpler and more maintainable solution.  What I call the Notification Service Pattern.  There are various versions around, but they're just different ways of coding the same basic functionality.</p> <p>The basic service pattern looks like this:</p> <div class="language-csharp extra-class"><pre class="language-csharp"><code><span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">DataService</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token return-type class-name">List<span class="token punctuation">&lt;</span><span class="token keyword">int</span><span class="token punctuation">&gt;</span></span> Values <span class="token operator">=&gt;</span> _Values<span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token class-name">List<span class="token punctuation">&lt;</span><span class="token keyword">int</span><span class="token punctuation">&gt;</span></span> _Values <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token constructor-invocation class-name">List<span class="token punctuation">&lt;</span><span class="token keyword">int</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">;</span>
+    <span class="token keyword">public</span> <span class="token keyword">event</span> <span class="token class-name">EventHandler</span> ListChanged<span class="token punctuation">;</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">async</span> <span class="token return-type class-name">Task</span> <span class="token function">GetListAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        __Values <span class="token operator">=</span>  <span class="token keyword">await</span> someservice<span class="token punctuation">.</span><span class="token function">GetList</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token function">NotifyListChanged</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">NotifyListChanged</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+            ListChanged<span class="token punctuation">?.</span><span class="token function">Invoke</span><span class="token punctuation">(</span><span class="token keyword">this</span><span class="token punctuation">,</span> EventArgs<span class="token punctuation">.</span>Empty<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>And the basic component pattern looks like this:</p> <div class="language-html extra-class"><pre class="language-html"><code>@implements IDisposable
+
+ .....
+@code {
+    [Inject] private DataService DataService { get; set; }
+
+    protected override Task OnInitializedAsync()
+    {
+        ....
+        this.DataService.ListChanged += this.OnListChange;
+        ....
+    }
+
+    private async void OnListChange(object sender, EventArgs e)
+        =&gt; await this.InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        =&gt; this.DataService.ListChanged -= this.OnListChange;
+</code></pre></div><h2 id="example"><a href="#example" class="header-anchor">#</a> Example</h2> <p>To demonstrate the principle, lets look at the problem in a simplistic way.</p> <ol><li>A <code>RandomNumberService</code> service that generates and exposes a random number.  It can be either Singleton or Scoped.</li> <li>A <code>ValueDisplay</code> component that displays the number with a button to update it.</li> <li>A RouteView/Page with serveral versions of <code>ValueDisplay</code> wired up differently.</li></ol> <p>First we have a Scoped or Singleton Service.</p> <div class="language-csharp extra-class"><pre class="language-csharp"><code><span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">RandomNumberService</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">int</span></span> Value <span class="token operator">=&gt;</span> _Value<span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">int</span></span> _Value <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+    <span class="token keyword">public</span> <span class="token keyword">event</span> <span class="token class-name">EventHandler</span> NumberChanged<span class="token punctuation">;</span>
+
+    <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">NewNumber</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token class-name"><span class="token keyword">var</span></span> rand <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token constructor-invocation class-name">Random</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token function">NotifyNumberChanged</span><span class="token punctuation">(</span>rand<span class="token punctuation">.</span><span class="token function">Next</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token number">100</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">NotifyNumberChanged</span><span class="token punctuation">(</span><span class="token class-name"><span class="token keyword">int</span></span> <span class="token keyword">value</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token operator">!</span><span class="token keyword">value</span><span class="token punctuation">.</span><span class="token function">Equals</span><span class="token punctuation">(</span>_Value<span class="token punctuation">)</span><span class="token punctuation">)</span>
+        <span class="token punctuation">{</span>
+            _Value <span class="token operator">=</span> <span class="token keyword">value</span><span class="token punctuation">;</span>
+            <span class="token comment">// only trigger event if it has delegates registered</span>
+            NumberChanged<span class="token punctuation">?.</span><span class="token function">Invoke</span><span class="token punctuation">(</span><span class="token keyword">this</span><span class="token punctuation">,</span> EventArgs<span class="token punctuation">.</span>Empty<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>Add this service to Startup.</p> <div class="language-csharp extra-class"><pre class="language-csharp"><code>    <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">ConfigureServices</span><span class="token punctuation">(</span><span class="token class-name">IServiceCollection</span> services<span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        services<span class="token punctuation">.</span><span class="token function">AddRazorPages</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        services<span class="token punctuation">.</span><span class="token function">AddServerSideBlazor</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token range operator">..</span><span class="token range operator">..</span>
+        services<span class="token punctuation">.</span><span class="token generic-method"><span class="token function">AddScoped</span><span class="token generic class-name"><span class="token punctuation">&lt;</span>RandomNumberService<span class="token punctuation">&gt;</span></span></span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+</code></pre></div><p>Next we build a display component that injects the <code>RandomNumberService</code>.  It gets it's value either from the Parameter or from the Service.  It has a button to update the number - this could be a save button in an inline edit form.  if <code>WireEvent</code> is true it sets up event wiring.   The component has a bottom tally row to show how many times Initialized, ParamsSet and Render has been called.</p> <div class="language-csharp extra-class"><pre class="language-csharp"><code><span class="token comment">// We implement IDisposable as we need to unhook the event wiring as part of the component disposal cycle.</span>
+@implements IDisposable
+
+<span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;container m-2 px-3 p-t bg-info text-white&quot;</span><span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;row&quot;</span><span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-12&quot;</span><span class="token operator">&gt;</span>
+            <span class="token operator">&lt;</span>h3<span class="token operator">&gt;</span>@<span class="token keyword">this</span><span class="token punctuation">.</span>Title<span class="token operator">&lt;</span><span class="token operator">/</span>h3<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;row&quot;</span><span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-2&quot;</span><span class="token operator">&gt;</span>Number<span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-2&quot;</span><span class="token operator">&gt;</span>@<span class="token keyword">this</span><span class="token punctuation">.</span>displayValue<span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-2&quot;</span><span class="token operator">&gt;</span><span class="token operator">&lt;</span>button <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;btn btn-secondary&quot;</span> @onclick<span class="token operator">=</span><span class="token string">&quot;(e) =&gt; NewRandomNumber()&quot;</span><span class="token operator">&gt;</span>New Number<span class="token operator">&lt;</span><span class="token operator">/</span>button<span class="token operator">&gt;</span><span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;row bg-dark mt-2&quot;</span><span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-3&quot;</span><span class="token operator">&gt;</span>
+            Initialized<span class="token punctuation">:</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-1&quot;</span><span class="token operator">&gt;</span>
+            @<span class="token keyword">this</span><span class="token punctuation">.</span>InitRun
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-3&quot;</span><span class="token operator">&gt;</span>
+            <span class="token class-name">Params</span> Set<span class="token punctuation">:</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-1&quot;</span><span class="token operator">&gt;</span>
+            @<span class="token keyword">this</span><span class="token punctuation">.</span>ParamsSetRun
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-3&quot;</span><span class="token operator">&gt;</span>
+            Rendered<span class="token punctuation">:</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-1&quot;</span><span class="token operator">&gt;</span>
+            @<span class="token keyword">this</span><span class="token punctuation">.</span>Rendered
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+<span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+
+@code <span class="token punctuation">{</span>
+    <span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">Inject</span></span><span class="token punctuation">]</span> <span class="token keyword">private</span> <span class="token return-type class-name">RandomNumberService</span> RdmService <span class="token punctuation">{</span> <span class="token keyword">get</span><span class="token punctuation">;</span> <span class="token keyword">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>
+
+    <span class="token comment">// Property to control if we wire up to the service event</span>
+    <span class="token punctuation">[</span>Parameter<span class="token punctuation">]</span> <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">bool</span></span> WireEvent <span class="token punctuation">{</span> <span class="token keyword">get</span><span class="token punctuation">;</span> <span class="token keyword">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>
+
+    <span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">Parameter</span></span><span class="token punctuation">]</span> <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">string</span></span> Title <span class="token punctuation">{</span> <span class="token keyword">get</span><span class="token punctuation">;</span> <span class="token keyword">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>
+
+    <span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">Parameter</span></span><span class="token punctuation">]</span> <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">int</span></span> Value <span class="token punctuation">{</span> <span class="token keyword">get</span><span class="token punctuation">;</span> <span class="token keyword">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span> <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+
+    <span class="token comment">// Get the Display value.  If the Parameter Value is 0 (not set) then we get the value from the service</span>
+    <span class="token keyword">private</span> <span class="token return-type class-name"><span class="token keyword">int</span></span> displayValue <span class="token operator">=&gt;</span> <span class="token keyword">this</span><span class="token punctuation">.</span>Value <span class="token operator">&gt;</span> <span class="token number">0</span> <span class="token punctuation">?</span> <span class="token keyword">this</span><span class="token punctuation">.</span>Value <span class="token punctuation">:</span> RdmService<span class="token punctuation">.</span>Value<span class="token punctuation">;</span>
+
+    <span class="token keyword">protected</span> <span class="token keyword">override</span> <span class="token return-type class-name">Task</span> <span class="token function">OnInitializedAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>InitRun<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token keyword">this</span><span class="token punctuation">.</span>WireEvent<span class="token punctuation">)</span>
+            <span class="token keyword">this</span><span class="token punctuation">.</span>RdmService<span class="token punctuation">.</span>NumberChanged <span class="token operator">+=</span> <span class="token keyword">this</span><span class="token punctuation">.</span>OnNumberChange<span class="token punctuation">;</span>
+
+        <span class="token keyword">return</span> <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">OnInitializedAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">private</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">NewRandomNumber</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token operator">=&gt;</span> RdmService<span class="token punctuation">.</span><span class="token function">NewNumber</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token comment">// Note that we use InvokeAsync to ensure StateHasChanged is run on the Synchronization Context thread.</span>
+    <span class="token keyword">private</span> <span class="token keyword">async</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">OnNumberChange</span><span class="token punctuation">(</span><span class="token class-name"><span class="token keyword">object</span></span> sender<span class="token punctuation">,</span> <span class="token class-name">EventArgs</span> e<span class="token punctuation">)</span>
+        <span class="token operator">=&gt;</span> <span class="token keyword">await</span> <span class="token keyword">this</span><span class="token punctuation">.</span><span class="token function">InvokeAsync</span><span class="token punctuation">(</span>StateHasChanged<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">int</span></span> InitRun <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">int</span></span> ParamsSetRun <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">int</span></span> Rendered <span class="token operator">=</span> <span class="token number">1</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">protected</span> <span class="token keyword">override</span> <span class="token return-type class-name">Task</span> <span class="token function">OnParametersSetAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>ParamsSetRun<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token keyword">return</span> <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">OnParametersSetAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token comment">// We overide ShouldRender to get it increment the counter</span>
+    <span class="token comment">// ShouldRender is called as part of the process to queue a render request</span>
+    <span class="token comment">// we start the counter at 1 as it doesn't get called during the Initialization process</span>
+    <span class="token keyword">protected</span> <span class="token keyword">override</span> <span class="token return-type class-name"><span class="token keyword">bool</span></span> <span class="token function">ShouldRender</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        Rendered<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token keyword">return</span> <span class="token boolean">true</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token comment">// IDisposable implementation</span>
+    <span class="token keyword">public</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">Dispose</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token keyword">this</span><span class="token punctuation">.</span>WireEvent<span class="token punctuation">)</span>
+            <span class="token keyword">this</span><span class="token punctuation">.</span>RdmService<span class="token punctuation">.</span>NumberChanged <span class="token operator">-=</span> <span class="token keyword">this</span><span class="token punctuation">.</span>OnNumberChange<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>Finally we have a razor display page</p> <div class="language-csharp extra-class"><pre class="language-csharp"><code>@page <span class="token string">&quot;/Random&quot;</span>
+
+<span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;container m-2 px-3 p-t bg-primary text-white&quot;</span><span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;row&quot;</span><span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-12&quot;</span><span class="token operator">&gt;</span>
+            <span class="token operator">&lt;</span>h3<span class="token operator">&gt;</span>@<span class="token keyword">this</span><span class="token punctuation">.</span>Title<span class="token operator">&lt;</span><span class="token operator">/</span>h3<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;row&quot;</span><span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-2&quot;</span><span class="token operator">&gt;</span>Number<span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-2&quot;</span><span class="token operator">&gt;</span>@RdmService<span class="token punctuation">.</span>Value<span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-2&quot;</span><span class="token operator">&gt;</span><span class="token operator">&lt;</span>button <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;btn btn-secondary&quot;</span> @onclick<span class="token operator">=</span><span class="token string">&quot;(e) =&gt; NewRandomNumber()&quot;</span><span class="token operator">&gt;</span>New Number<span class="token operator">&lt;</span><span class="token operator">/</span>button<span class="token operator">&gt;</span><span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;row bg-dark mt-2&quot;</span><span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-3&quot;</span><span class="token operator">&gt;</span>
+            Initialized<span class="token punctuation">:</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-1&quot;</span><span class="token operator">&gt;</span>
+            @<span class="token keyword">this</span><span class="token punctuation">.</span>InitRun
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-3&quot;</span><span class="token operator">&gt;</span>
+            <span class="token class-name">Params</span> Set<span class="token punctuation">:</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-1&quot;</span><span class="token operator">&gt;</span>
+            @<span class="token keyword">this</span><span class="token punctuation">.</span>ParamsSetRun
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-3&quot;</span><span class="token operator">&gt;</span>
+            Rendered<span class="token punctuation">:</span>
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+        <span class="token operator">&lt;</span>div <span class="token keyword">class</span><span class="token operator">=</span><span class="token string">&quot;col-1&quot;</span><span class="token operator">&gt;</span>
+            @<span class="token keyword">this</span><span class="token punctuation">.</span>Rendered
+        <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+    <span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+<span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+
+<span class="token operator">&lt;</span><span class="token class-name">ValueDisplay</span> Title<span class="token operator">=</span><span class="token string">&quot;Unwired Display&quot;</span><span class="token operator">&gt;</span><span class="token operator">&lt;</span><span class="token operator">/</span>ValueDisplay<span class="token operator">&gt;</span>
+<span class="token operator">&lt;</span><span class="token class-name">ValueDisplay</span> WireEvent<span class="token operator">=</span><span class="token string">&quot;true&quot;</span> Title<span class="token operator">=</span><span class="token string">&quot;Wired Display&quot;</span><span class="token operator">&gt;</span><span class="token operator">&lt;</span><span class="token operator">/</span>ValueDisplay<span class="token operator">&gt;</span>
+<span class="token operator">&lt;</span><span class="token class-name">ValueDisplay</span> Value<span class="token operator">=</span><span class="token string">&quot;RdmService.Value&quot;</span> Title<span class="token operator">=</span><span class="token string">&quot;Parameter Display&quot;</span><span class="token operator">&gt;</span><span class="token operator">&lt;</span><span class="token operator">/</span>ValueDisplay<span class="token operator">&gt;</span>
+
+@code <span class="token punctuation">{</span>
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">string</span></span> Title <span class="token operator">=</span> <span class="token string">&quot;Root&quot;</span><span class="token punctuation">;</span>
+
+    <span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">Inject</span></span><span class="token punctuation">]</span> <span class="token keyword">private</span> <span class="token return-type class-name">RandomNumberService</span> RdmService <span class="token punctuation">{</span> <span class="token keyword">get</span><span class="token punctuation">;</span> <span class="token keyword">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>
+
+    <span class="token keyword">private</span> <span class="token return-type class-name"><span class="token keyword">void</span></span> <span class="token function">NewRandomNumber</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token operator">=&gt;</span> RdmService<span class="token punctuation">.</span><span class="token function">NewNumber</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">int</span></span> InitRun <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>    
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">int</span></span> ParamsSetRun <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token class-name"><span class="token keyword">int</span></span> Rendered <span class="token operator">=</span> <span class="token number">1</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">protected</span> <span class="token keyword">override</span> <span class="token return-type class-name">Task</span> <span class="token function">OnInitializedAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        InitRun<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token keyword">return</span> <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">OnInitializedAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">protected</span> <span class="token keyword">override</span> <span class="token return-type class-name">Task</span> <span class="token function">OnParametersSetAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>ParamsSetRun<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token keyword">return</span> <span class="token keyword">base</span><span class="token punctuation">.</span><span class="token function">OnParametersSetAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">protected</span> <span class="token keyword">override</span> <span class="token return-type class-name"><span class="token keyword">bool</span></span> <span class="token function">ShouldRender</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        Rendered<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token keyword">return</span> <span class="token boolean">true</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>Once you have this running you can see what happens when you update the number in various controls within the page.  The sure-fire method is the event driven update.</p></div> <footer class="page-edit"><!----> <!----></footer> <!----> </main></div><div class="global-ui"></div></div>
+    <script src="/assets/js/app.de94086e.js" defer></script><script src="/assets/js/2.0005fb99.js" defer></script><script src="/assets/js/15.50f29b11.js" defer></script>
+  </body>
+</html>
