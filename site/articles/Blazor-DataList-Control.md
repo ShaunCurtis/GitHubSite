@@ -8,17 +8,13 @@ published: 2021-03-22
 
 # Building A DataList Control in Blazor
 
-::: warning
-This article is in progress - nearly complete getting a polish.
-:::
+This article describes how to build an input control based on a DataList in Blazor, and make it behave like a Select.  *DataList* apppeared in HTML5.  Some browsers, particularly Safari were slow on the uptake, so usage was a bit problematic in the early days of HTML5.  Today, all the major browsers on various platforms support it: you can see the support list [here](https://caniuse.com/?search=datalist).
 
-This article describes how to build an input control based on a DataList in Blazor, and make it behave like a Select.  *DataList* apppeared in HTML5.  Some browsers, particularly Safari were slow on the uptake, so using was a bit problematic in the early days of HTML5.  Today, all the major browsers on various platforms support it: you can see the support list [here](https://caniuse.com/?search=datalist).
-
-We'll build two versions of the control using Blazor's `InputBase` as the base class.  Along the way we delve into the inner workings of `InputBase` and explore control binding.
+We'll build two versions of the control using Blazor's `InputBase` as the base class to fit into the existing edit form framework.  Along the way we delve into the inner workings of `InputBase` and explore control binding.
 
 ## The Html DataList
 
-When `Input` is linked to a `datalist`, it makes filtered suggestions based on the `datalist`.  Out-of-the-box, the user can select a suggestion or enter any text value.  The basic markup for the control is shown below.  Try it in a page.
+When `Input` is linked to a `datalist`, it makes filtered suggestions as the user types based on the `datalist`.  Out-of-the-box, the user can select a suggestion or enter any text value.  The basic markup for the control is shown below.
 
 ```html
 <input type="text" list="countrylist" />
@@ -29,6 +25,12 @@ When `Input` is linked to a `datalist`, it makes filtered suggestions based on t
     <option value="Austria" />
 <datalist>
 ```
+
+## Example Site and Code Repository
+
+The code is in a my [Blazor.Database](https://github.com/ShaunCurtis/Blazor.Database/) repository [here in Blazor.SPA/Components/FormControls](https://github.com/ShaunCurtis/Blazor.Database/tree/master/Blazor.SPA/Components/FormControls)
+
+The controls can be seen in action [here on my Blazor.Database Demo Site](https://cec-blazor-database.azurewebsites.net/editorcontrols).
 
 ## Exploring binding in a Test Control
 
@@ -680,7 +682,7 @@ protected string CurrentStringValue
 }
 ```
 
-`OnKeyDown` sets the `_setValurByTab` flag.
+`OnKeyDown` sets the `_setValueByTab` flag.
 
 ```csharp
 private void UpdateEnteredText(ChangeEventArgs e)
