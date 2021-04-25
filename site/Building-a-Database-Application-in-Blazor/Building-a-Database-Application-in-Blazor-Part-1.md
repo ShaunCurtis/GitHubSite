@@ -41,7 +41,7 @@ The repository for the articles has moved to [Blazor.Database Repository](https:
 
 There's a SQL script in /SQL in the repository for building the database.
 
-The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-server.azurewebsites.net/](https://cec-blazor-server.azurewebsites.net/).
+The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-server.azurewebsites.net/).
 
 ## Design Philosophy
 
