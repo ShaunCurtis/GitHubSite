@@ -4,18 +4,20 @@ precis: Using For and ForEach loops in Blazor Components
 date: 2020-10-01
 ---
 
-# For and ForEach loops in Blazor Components
+# For and ForEach Iteration in Blazor Components
 
-The iterators `for` and `foreach` cause a lot of confusion in Blazor components.  In normal C# code, your loop specific code is confined to the loop, so you don't often have to think about what you're referencing.  In Blazor components the actual values and references are crystalised and used long after the loop has completed.
+Iteration statements such as `for` and `foreach` present challenges in Blazor components that you don't normally face.  In a classic interation implementation, your loop specific code is confined to the loop - you know you can't reference `List[i]` outside the loop.  In Blazor components the actual values/references are crystalised and used long after the loop completes.
 
-Let's look at various versions and see what happens.
+Let's look at various examples and see what happens.
 
 ## Test.razor
 
-To demo the versions we need a test page with some supporting code:
+We need a test page with some supporting code:
 
 ```csharp
 @page "/Test"
+
+// Our iteration code
 
 <div>@_selected</div>
 
@@ -52,7 +54,7 @@ To demo the versions we need a test page with some supporting code:
 
 ## The Straight ForEach
 
-This looks like this:
+This looks like:
  
 ```csharp
 @foreach (var country in Countries)
@@ -69,7 +71,7 @@ Each iteration points `OnClick` to the correct `country` object in `Countries`.
 
 ## The Indexed ForEach
 
-This looks like this:
+This looks like:
  
 ```csharp
 @{ int x = 0;}
@@ -111,4 +113,6 @@ We now set a local loop variable and reference that within the loop.    When the
 
 ## Wrap Up
 
-The standard `foreach` loop is bulletproof, so in general stick with it.
+Hopefully you can see that you should either:
+ - Stick to the standard `foreach` loop - it's fairly bulletproof.
+ - Use a local loop variable if you have to use `for`.
