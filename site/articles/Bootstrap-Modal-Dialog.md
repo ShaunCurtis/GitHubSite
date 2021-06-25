@@ -14,15 +14,9 @@ For a web based SPA [Single Page Application] to look like a real application it
 
 ## Code and Examples
 
-A version of the standard Blazor site implementing modal dialogs is [here at CEC.Blazor.Examples](https://github.com/ShaunCurtis/CEC.Blazor.Examples).
+The component is part of my larger Application Framework Library `Blazor.Database` avaliable on Github at [Blazor.Database Repo](https://github.com/ShaunCurtis/Blazor.Database).  
 
-The component is part of my larger Application Framework Library `CEC.Blazor` avaliable on Github at [CEC.Blazor](https://github.com/ShaunCurtis/CEC.Blazor).  
-
-You can see live sites at:
-
-- [CEC.Blazor.Examples Site](https://cec-blazor-examples.azurewebsites.net/)
-- [CEC.Blazor WASM Site](https://cec-blazor-wasm.azurewebsites.net/) - look at *Modal Weather*.
-- [CEC.Blazor Server Site](https://cec-blazor-server.azurewebsites.net/) - look at *Modal Weather*.
+You can see a live site her [CEC.Blazor WASM Site](https://cec-blazor-database.azurewebsites.net/) - look at *Modal Weather*.
 
 ## The Modal Dialog Classes
 

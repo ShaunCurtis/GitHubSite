@@ -2,7 +2,7 @@
 title: Render Fragments in Blazor
 date: 2021-06-04
 oneliner: An article describing Render Fragments in Blazor.
-precis: This article looks at RenderFragements in Blazor: what they are and how to use them.
+precis: This article looks at RenderFragements in Blazor, what they are and how to use them.
 published: 2021-06-04
 ---
 
@@ -25,7 +25,7 @@ To quote the official Microsoft documentation.
 
 > A RenderFragement represents a segment of UI content, implemented as a delegate that writes the content to a RenderTreeBuilder.
 
-The `RenderTreeBuidder` is even more succinct:
+The `RenderTreeBuilder` is even more succinct:
 
 > Provides methods for building a collection of RenderTreeFrame entries.
 

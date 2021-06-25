@@ -2,7 +2,7 @@
 title: Part 1 - A Blazor Database Template - Project Structure and Framework
 oneliner: This article describes the Structire and Framework for Blazor Database Template.
 precis: This article is the first in a series describing a Blazor Database Template using the Weather Forecast theme of the base Blazor Template.
-date: 2021-06-01
+date: 2021-06-24
 published: 2020-10-01
 ---
 
@@ -33,7 +33,7 @@ These articles are not:
 1. An attempt to define best practice.
 2. The finished product.
 
-This first article proves an overview of the framework and solution architecture, and my reasoning for making certain design decisions.
+This first article proves an overview of the framework and solution architecture, and my reasons for making certain design decisions.
 
 ## Repository and Database
 
@@ -45,99 +45,21 @@ The demo site has changed now the Server and WASM have been combined.  The site 
 
 ## Design Philosophy
 
-### The Data Flow
+The high level application design looks like this:
 
-The data side is designed to:
+![Basic Application Design](/siteimages/articles/database/basic-app-design.png)
 
-1. Standardise the interfaces between the application data structure and the underlying data storage, 
-2. Standardise the interfaces between the application data structure and the application view structure.
-3. Make the data structure components testable.
-4. Use naming conventions to provide abstraction.  Model classes have the same names as EF `DbSets`.
+This may look too complex for a simple application, we can just grab the data from the datasource in the display page.  Up to you, but you (or someone else who has to maintain the code) will almost certainly regret that decision at some point.
 
-Data is divided into three types of object:
+*UI* and *Data Interface* are pretty self explanatory, but what exactly is the *Core Application*.  It's all the code that makes your application unique.  It's the business logic that processes the raw data from the data store and the logic that takes user input are stores sensible data from it.  The point to make is you should de-couple all this code from the data source and the UI.  Get it right and you can change the data store or the front end with little or no impact on the core application.
 
-1. Model Records - these are immutable records and represent a single table or view in the database.  Brokers and Connectors work with Model Records.
-
-2. Compound Records - these are immutable records based on a Model Record, but contain data from other model records associated with the main model record.
-
-3. Edit Model Classes - these are editable versions of model records.  They contain logic to track, validate and build saveable model records.
-
-The data storage for the application is a SQL database accessed through Entity Framework.
-
-The application library contains two `DbContext` classes:
-
-1. `LocalWeatherDbContext` uses a standard SQL database with a connection string defined in `AppSettings`.
-2. `InMemoryWeatherDbContext` uses an In-Memory SQLite database for testing and demo purposes.
-
-The `DbContext` services are created through a DBContextFactory implemented through the `AddDBContextFactory` service extension.  The application accesses the database using the `IDbContextFactory<TDbContext>` interface.
-
-### Brokers
-
-The base data layer is the *Broker*.  It's responsible for standard CRUDL - Create/Read/Update/Delete/List - actions against database entities.
-
-`IDataBroker` defines the common interface, implementing CRUDL in Database language terminology.  Method names reflect the terminology used in the underlying data storage - Select, Update, Insert,...
-
-`BaseDataBroker` provides an abstract base implementation of the interface.
-
-`ServerDataBroker` interfaces with the SQL EF database context used by Blazor Server and the API controller.  `InMemoryDataBroker` interfaces with the SQLLite in memory instance.  `APIDataBroker` provides the API based data broker for Blazor WebAssembly.
-
-These brokers implement generics where `TRecord` is the model class that represents the EF `DbSet`.  The methods use `GetDbSet`, a  `DbContext` extension method, to return the `DbSet` object for the model class.
-
-To demonstrate the level of boilerplating achieved in the generic services, the declaration of the Local Database Broker for the application looks like this:
-
-```csharp
-public class WeatherSQLDataBroker :
-    ServerDataBroker<LocalWeatherDbContext>
-{
-    public WeatherSQLDataBroker(IConfiguration configuration, IDbContextFactory<LocalWeatherDbContext> dbContext) : base(configuration, dbContext) { }
-}
-```
-
-### Connectors
-
-Connectors provide the interfaces between brokers and Services.
-
-`IDataServiceConnector` defines the common interface, implmementing CRUDL in more normal programming terminology - get, save, update, ...
-
-`ModelDataServiceConnector` implements the interface using generics to provide a abstract connector to any model/DbSet implementated by EF.
-
-#### ViewServices
-
-View Services provide the connection between the UI and data.  They contain all the business and UI logic.  There are three types:
-
-1. ModelViewServices - these expose single base model data to the UI.
-2. CompoundModelServics - these expose complex models built from base models.  An example would be a weather station and its assocaited daily weather station data.
-3. EditModelServices - these transform record data into editable model classes and expose and manage the edit process.
-
-In the library `IModelViewService` defines the interface for standard model view services with `BaseModelViewService` defining an abstract implementation.
-
-In the solution `WeatherForecastViewService` looks like this.
-```csharp
-public class WeatherForecastViewService : 
-    BaseModelViewService<WeatherForecast>, 
-    IModelViewService<WeatherForecast>
-{
-    public WeatherForecastViewService(IDataServiceConnector dataServiceConnector) : base(dataServiceConnector) { }
-}
-```
-
-### UI
-
-*Page* is is very misused term in SPAs: frameworks could and should have introduced some new terminology.  I only use the *Pages* directory for real web pages, and *Page* to describe a web page served by a web server.  SPAs aren't web sites.  Programmers need step outside the webpage paradigm to understand how they work.  The Blazor UI is component based; to think of it containing *Pages* perpetuates the paradigm.  The only web page is the launch page.  Once the SPA launches, the application changes out components to transition between Views.  I've built an SPA with no router or Urls in sight - just like a desktop application.
-
-I use the following terminology thoughout these articles:
-1. Page - the launch web page on the web site.  The only page in an SPA.
-2. RouteView/Routed Component.  These are all terms used by various people describing the pseudo page.  I use the term RouteViews.  This is the content displayed in the content section of a Layout, and normally determined by a defined route.  We'll look at these in more detail later in this article.
-3. Forms.  Forms are logical collections of controls that are either displayed in a view or a modal dialog.  Lists, view forms, edit forms are all classic forms. Forms contain controls not HTML.
-4. Controls.  Controls are components that display something: they emit HTML code.  For example, an edit box, a dropdown, button, ... A Form is a collection of controls.
+## Solution Structure
 
 The application is configured to build and deploy both Server and WASM versions of the SPA, and host both on the same web site.  The base solution architecture is:
 
 1. Core Razor Library - contains the code that can be deployed to any application.  These could be built and deployed as a Nuget Package.
 2. Web Assembly Razor Library - contains the application specific code for the SPA along with the Web Assembly specific code.
 3. ASPNetCore Razor Web Project.  The host project that contains the startup pages for the WASM and Server SPAs, the services for the Blazor Server Hub and the server-side API Controllers for the WASM SPA.
-
-## Solution Structure
 
 I use Visual Studio, so the Github repository consists of a solution with five projects.  These are:
 
@@ -147,9 +69,93 @@ I use Visual Studio, so the Github repository consists of a solution with five p
 
 You may have noticed at this point that there's no Server project.  You don't need one.
 
+### The Data Box
+
+The data box is designed to:
+
+1. Standardise the interfaces between the application data box and the underlying data storage, 
+2. Standardise the interfaces between the application data box and the application core application.
+3. Make the data box components testable.
+4. Use naming conventions to provide abstraction.  Model classes have the same names as EF `DbSets`.
+
+![Data Pipeline](/siteimages/articles/database/data-pipeline.png)
+
+#### Data Classes
+
+Data is divided into three object types:
+
+1. **Model Records** - these are immutable records and represent a single table or view in the database.  Brokers and Connectors work with Model Records.  All model classes implement an `IDbRecord` interface. 
+
+2. **Compound Records** - these are immutable records based on a Model Record, but contain processed data and/or data from other model records associated with the main model record.
+
+3. **Edit Model Classes** - these are editable versions of model records.  They contain logic to track, validate and build saveable model records.  All edit classes implement `IEditRecord`, and optionally `IValidation` interfaces
+
+The data storage for the application is a SQL database accessed through Entity Framework.  The connection string defined in `AppSettings`.  The database is accessed through a `DbContext` class `LocalWeatherDbContext`.  The `DbContext` services are created through a DBContextFactory implemented through the `AddDBContextFactory` service extension.  The application accesses the database using the `IDbContextFactory<TDbContext>` interface.
+
+#### Brokers
+
+*Brokers* provide the application interface into the data box .  The *DataBroker* is responsible for standard CRUDL - Create/Read/Update/Delete/List - actions against database entities.
+
+`IDataBroker` defines the common interface, implementing CRUDL in Database language terminology.  Method names reflect the terminology used in the underlying data storage - Select, Update, Insert,...
+
+`BaseDataBroker` provides an abstract base implementation of the interface.
+
+`ServerDataBroker` interfaces with the SQL EF database context used by Blazor Server and the API controller.  `APIDataBroker` provides the API based data broker for Blazor WebAssembly.
+
+These brokers implement generics where `TRecord` is the model class that represents the EF `DbSet`.  The methods use `GetDbSet`, a  `DbContext` extension method, to return the `DbSet` object for the model class.
+
+To demonstrate the level of abstraction and boilerplating achieved in the generic library services, the declaration of the Local Database Broker for the application is:
+
+```csharp
+public class WeatherSQLDataBroker :
+    ServerDataBroker<LocalWeatherDbContext>
+{
+    public WeatherSQLDataBroker(IConfiguration configuration, IDbContextFactory<LocalWeatherDbContext> dbContext) : base(configuration, dbContext) { }
+}
+```
+
+#### Connectors
+
+Connectors provide the data interfaces between the core application and brokers.
+
+`IDataServiceConnector` defines the common interface, implmementing CRUDL in more normal programming terminology - get, save, update, ...
+
+`ModelDataServiceConnector` implements the interface using generics to provide a abstract connector to any model/DbSet implementated by EF.
+
+#### ViewServices
+
+View Services provide the connection between the UI and the core application.  They contain all the business and UI logic.  There are three types:
+
+1. ModelViewServices - these expose single base model data to the UI.
+2. CompoundModelServics - these expose complex models built from base models.  An example would be a weather station and its associated daily weather station data.
+3. EditModelServices - these transform record data into editable model classes and expose and manage the edit process.
+
+In the library `IModelViewService` defines the interface for standard model view services with `BaseModelViewService` defining an abstract implementation.
+
+In the solution `WeatherForecastViewService` looks like this.
+
+```csharp
+public class WeatherForecastViewService : 
+    BaseModelViewService<WeatherForecast>, 
+    IModelViewService<WeatherForecast>
+{
+    public WeatherForecastViewService(IDataServiceConnector dataServiceConnector) : base(dataServiceConnector) { }
+}
+```
+
 ## UI Structure
 
-The application uses a structured approach to the UI.  This makes it easier to stop repeating the same old Razor/Html markup across an application, build re-usable components and move code from the application into libraries.
+The UI is structured to use re-usable components built in Razor/Html markup across an application, with the majority of the code in the base library.
+
+*Page* is is very misused term in SPAs: frameworks could and should have introduced some new terminology.  I only use the *Pages* directory for real web pages, and *Page* to describe a web page served by a web server.  SPAs aren't web sites.  Programmers need step outside the web page paradigm to understand how they work.  The Blazor UI is component based; to think of it containing *Pages* perpetuates the paradigm, and a lot of misconceptions.  The only web page in a SPA is the launch page.  Once the SPA launches, the application changes out components to transition between Views.  I've built an SPA with no router or Urls in sight - just like a desktop application.
+
+I use the following terminology thoughout these articles:
+1. Page - the launch web page on the web site.  The only page in an SPA.
+2. RouteView/Routed Component.  These are all terms used by various people describing the pseudo page.  I use the term RouteViews.  This is the content displayed in the content section of a Layout, and normally determined by a defined route.  A *Route* deson't load a page, it loads a RouteView which is a component.  We'll look at these in more detail later in this article.
+3. Forms.  Forms are logical collections of controls that are either displayed in a view or a modal dialog.  Lists, view forms, edit forms are all classic forms. Forms contain controls not HTML.
+4. Controls.  Controls are components that display something: they emit HTML code to the Renderer.  For example, an edit box, a dropdown, button, ... A Form is a collection of controls.
+
+![UI Pipeline](/siteimages/articles/database/ui-pipeline.png)
 
 ### Pages
 
@@ -159,15 +165,14 @@ Pages are the web pages that act as the host for the the application.  There's o
 
 RouteViews are the components loaded into the root `App` component, normally by the Router through a Layout.  They don't have to be.  You can write your own View Manager, and you don't have to use Layouts.  The only two requirements for a View are:
 
-1. It must be declared as a razor component.
-2. It must declare one or more routes using the `@page` directive.
+1. It must be declared as a razor component or class implementing `IComponent`.
+2. It must declare one or more routes either through the `@page` directive or as a `RouteAttribute`.
 
 The `FetchData` view is declared as shown below.  The Razor makrup is mimimal, just the `WeatherForecastListForm`.  The code handles what happens on various actions in the List Form.  
 
-```html
+```csharp
 @page "/fetchdata"
 <WeatherForecastListForm EditRecord="this.GoToEditor" ViewRecord="this.GoToViewer" NewRecord="this.GoToNew" ExitAction="Exit"></WeatherForecastListForm>
-
 @code {
     [Inject] NavigationManager NavManager { get; set; }
     private bool _isWasm => NavManager?.Uri.Contains("wasm", StringComparison.CurrentCultureIgnoreCase) ?? false;
@@ -271,18 +276,42 @@ Services for each project/library are specified in `IServiceCollection` Extensio
 
 #### ServiceCollectionExtensions.cs
 
-The site specific services loaded are the controller service `WeatherForecastControllerService` and the data service as an `IFactoryDataService` interface loading  `FactoryWASMDataService`.
+There are methods for site specific services and a `AddCommonServices` method to cover all the services common to WASM and Server modes.
 
 ```csharp
-public static class ServiceCollectionExtensions
-{
-    public static IServiceCollection AddWASMApplicationServices(this IServiceCollection services)
+    public static class ServiceCollectionExtensions
     {
-        services.AddScoped<IFactoryDataService, FactoryWASMDataService>();
-        services.AddScoped<WeatherForecastControllerService>();
-        return services;
+        public static IServiceCollection AddWASMApplicationServices(this IServiceCollection services)
+        {
+            services.AddScoped<IDataBroker, APIDataBroker>();
+            AddCommonServices(services);
+
+            return services;
+        }
+        public static IServiceCollection AddServerApplicationServices(this IServiceCollection services, IConfiguration configuration)
+        {
+
+            // Local DB Setup
+            var dbContext = configuration.GetValue<string>("Configuration:DBContext");
+            services.AddDbContextFactory<MSSQLWeatherDbContext>(options => options.UseSqlServer(dbContext), ServiceLifetime.Singleton);
+            services.AddSingleton<IDataBroker, WeatherSQLDataBroker>();
+            AddCommonServices(services);
+
+            return services;
+        }
+
+        private static void AddCommonServices(this IServiceCollection services)
+        {
+            services.AddSingleton<RouteViewService>();
+            services.AddScoped<ILogger, Logger<LoggingBroker>>();
+            services.AddScoped<ILoggingBroker, LoggingBroker>();
+            services.AddScoped<IDateTimeBroker, DateTimeBroker>();
+            services.AddScoped<IDataServiceConnector, ModelDataServiceConnector>();
+            services.AddScoped<WeatherForecastViewService>();
+            services.AddSingleton<RandomNumberService>();
+            services.AddScoped<DummyWeatherService>();
+        }
     }
-}
 ```
 
 The final setup on the WASM project is to set the `StaticWebAssetBasePath` in the project file.  This will let us run the WASM and Server version together on the *Web* project.
@@ -296,7 +325,7 @@ The final setup on the WASM project is to set the `StaticWebAssetBasePath` in th
 
 ### CSS
 
-All CSS is shared, so lives in `Blazor.Database.Web`.  I use Bootstrap, customized a little with SASS.  I have the WEB COMPILER extension installed in Visual Studio to compile SASS files on the fly.
+All CSS is shared, so lives in `Blazor.Database.Web`.  I use Bootstrap, customized a little with SASS.  The *WEB COMPILER* extension is installed in Visual Studio to compile SASS files on the fly.
 
 ## Blazor.Database.Web Project
 
@@ -348,7 +377,7 @@ Standard Blazor Server startup page.  Note:
         <a class="dismiss">🗙</a>
     </div>
 
-    <script src="/wasm/site.js"></script>
+    <script src="_content/Blazor.SPA/site.js"></script>
     <script src="_framework/blazor.server.js"></script>
 </body>
 </html>
@@ -392,7 +421,7 @@ This is just a server version of  WASM *index.html**.
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
-    <script src="/wasm//site.js"></script>
+    <script src="_content/Blazor.SPA/site.js"></script>
     <script src="/wasm/_framework/blazor.webassembly.js"></script>
 </body>
 </html>
@@ -481,38 +510,6 @@ public class Startup
 }
 ```
 
-#### ServiceCollectionExtensions.cs
-
-There are two service collection extension methods.  One for a normal SQL database and a second for the testing In-Memory database. 
-
-```csharp
-public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
-{
-
-    // Local DB Setup
-    var dbContext = configuration.GetValue<string>("Configuration:DBContext");
-    services.AddDbContextFactory<LocalWeatherDbContext>(options => options.UseSqlServer(dbContext), ServiceLifetime.Singleton);
-    services.AddSingleton<IFactoryDataService, LocalDatabaseDataService>();
-
-    services.AddScoped<WeatherForecastControllerService>();
-
-    return services;
-}
-
-public static IServiceCollection AddInMemoryApplicationServices(this IServiceCollection services, IConfiguration configuration)
-{
-
-    // In Memory DB Setup
-    var memdbContext = "Data Source=:memory:";
-    services.AddDbContextFactory<InMemoryWeatherDbContext>(options => options.UseSqlite(memdbContext), ServiceLifetime.Singleton);
-    services.AddSingleton<IFactoryDataService, TestDatabaseDataService>();
-
-    services.AddScoped<WeatherForecastControllerService>();
-
-    return services;
-}
-```
-
 ## Wrap Up
 That wraps up this section.  It's a bit of an overview, with a lot more detail to come later.  Hopefully it demonstrates the level of abstraction you can achieve with Blazor projects.  The next section looks at Services and implementing the data layers.
 
@@ -528,4 +525,5 @@ If you're reading this article well into the future, check the readme in the rep
 * 15-Sep-2020: Initial version
 * 17-Nov-2020: Major Blazor.CEC library changes.  Change to ViewManager from Router and new Component base implementation.
 * 26-Mar-2021: Major updates to Services, project structure and data editing
+* 24-June-2021: revisions to data layers.
 
