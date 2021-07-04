@@ -591,8 +591,13 @@ A component is not limited to a single `RenderFragment`.  A table component coul
 The most important point to understand about Component events is they are **NOT** fire and forget.  All events are by default asynchronous and look like this:
 
 ```csharp
-await calltheeventmethod
+var task = InvokeAsync(HandlerMethod);
 StateHasChanged();
+if (!task.IsCompleted)
+{
+    await task;
+    StateHasChanged();
+}
 ```
 
 So the following code won't execute as expected:

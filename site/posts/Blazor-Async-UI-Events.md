@@ -21,8 +21,13 @@ The the event caller doesn't expect a return, so the event handler method should
 Blazor UI *events* aren't fire and forget.  They're loaded by the Blazor runtime onto the `SynchronisationContext` thread and look something like:
 
 ```csharp
-Await {UIEvent code as task};
-Component Invoke(StateHasChanged);
+var task = InvokeAsync(EventMethod);
+StateHasChanged();
+if (!task.IsCompleted)
+{
+    await task;
+    StateHasChanged();
+}
 ```
 
 The event handler is called and awaited and then `StateHasChanged` is called on the component that owns the event.  This ensures that whatever actions the event caused are captured in the re-render event. 
