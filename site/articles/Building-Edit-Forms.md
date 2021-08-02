@@ -1,8 +1,15 @@
+---
+title: Building Blazor Edit Forms
+date: 2021-08-02
+oneliner: How to build Blazor Edit Forms that manage state.
+precis: How to build Blazor Edit Forms that manage state.
+published: 2021-08-02
+---
 # Managing Form Edit State in Blazor
 
-You've edited data in a form.  You inadvertently click on a link in the navigation bar, click the back button, hit a favourite link.  Do you really want to exit the form and go to where you've told the browser to go to.  Maybe, maybe not.  What you probably want is to be warned about your unsaved data, and given the option to return or discard.
+You've edited data in a form.  You click on a link in the navigation bar, click the back button, hit a favourite link.  Do you really want to exit the form ? Maybe, maybe not.  What you probably want is to be at least warned if you have unsaved data in the form you are exiting.
 
-![Dirty Editor](./images/Dirty-Exit.png)
+![Dirty Editor](https://shauncurtis.github.io/siteimages/Articles/Edit-Forms/Dirty-Exit.png)
 
 This Repo shows how to implement just that in Blazor.
 
@@ -11,7 +18,7 @@ There's currently a Azure Site that demos the code - [Blazor-EditForms](https://
 ## Form Exits
 
 There are three (controlled) ways a user can exit a form:
-1. Intra Form Navigation - Clicking on an Exit button within the Form.
+1. Intra Form Navigation - Clicking on an Exit button within the form.
 2. Intra Application Navigation - Clicking on a link in a navigation bar outside the form, clicking on the forward or back buttons on the browser.
 3. Extra Application Navigation - entering a new Url in the address bar, clicking on a favourite, closing the browser Tab or application.
 
@@ -19,11 +26,15 @@ We have no control over killing the browser - say a reboot or system crash - so 
 
 ## Form Edit State
 
-Before we implement code to address these exit paths we need to track edit state - are any of the current entered values different from the stored values?  Out-of-the-box Blazor has no controls to do this.
+The first step is to track edit state - are any of the current entered values different from the stored values?  Out-of-the-box Blazor has no mechanisms to do this.  We need an edit state manager.
+
+This is implemented as two classes.
+1. `EditStateService` - is a scoped service that holds the state of the current edit form during the SPA session.
+2. `EditFormState` - is a component that interacts with the `EditContext` within a form.  It stores the initial `Model` values and any user updates in an `EditFieldCollection`.  It updates the `EditStateService` as any changes take place.
 
 ### EditStateService
 
-`EditStateService` is a scoped service state container.  It contains the information needed to track edit state in the application.
+`EditStateService` is a scoped service state container that tracks the edit state of the current form.
 
 ```csharp
 public class EditStateService
@@ -63,11 +74,9 @@ public class EditStateService
 
 ### EditFormState
 
-`EditFormState` is a UI control that tracks the user entered values against the original values in the model.  The code is too long to reproduce in it's entirity.  You can view the code in the repository.
+`EditFormState` is a UI control with no UI output - like `EditForm`.  It's placed within an `EditForm` and captures the cascaded `EditContext`, and the `EditStateService` through dependency injection.  It exposes an `EditStateChanged` event and an `IsDirty` property.
 
-It's a UI control with no UI output - like `EditForm`.  It's placed within an `EditForm` and gets the cascaded `EditContext`.  It gets the `EditStateService` through dependency injection and exposes an `EditStateChanged` event and an `IsDirty` property. 
-
-It gets the model from the `EditContext` and saves the model write properties to an `EditFields` collection.
+`EditFormState` reads all the write properties from the `EditContext` and saves them to an `EditFields` collection.
 
 `EditField` looks like this.  Note all but `EditedValue` are `init` record type properties.
 
@@ -104,9 +113,9 @@ It gets the model from the `EditContext` and saves the model write properties to
     }
 ```
 
-`EditFieldCollection` is an `IEnumerable` implementation.  It provides:
- -  an `IsDirty` property which checks the state of all the `EditFields` in the collection.
- -  a set of getters and setters for adding and setting the edit state. 
+`EditFieldCollection` implements `IEnumerable`.  It provides:
+ 1.  An `IsDirty` property which checks the state of all the `EditFields` in the collection.
+ 2. A set of getters and setters for adding and setting the edit state. 
 
 ```csharp
     public class EditFieldCollection : IEnumerable
@@ -121,15 +130,106 @@ It gets the model from the `EditContext` and saves the model write properties to
 
         public void ResetValues()
             => _items.ForEach(item => item.Reset());
-..... lots of getters and setters and IEnumerator implementation
+..... lots of getters and setters and IEnumerator implementation code
 ```
 
-`EditFormState.OnInitializedAsync()`:
-1. Loads the properties from `EditContext.Model`.
+`EditFormState` Properties/Fields
+
+```csharp
+private bool disposedValue;
+private EditFieldCollection EditFields = new EditFieldCollection();
+
+[CascadingParameter] public EditContext EditContext { get; set; }
+[Parameter] public EventCallback<bool> EditStateChanged { get; set; }
+
+[Inject] private EditStateService EditStateService { get; set; }
+[Inject] private IJSRuntime _js { get; set; }
+
+```
+When the component is initilaised it:
+
+1. Loads `EditFields` from `EditContext.Model`.
 2. Checks the `EditStateService` and if it's dirty gets and deserializes `Data`.
 3. Sets the `EditedValue` for each `EditField` to the saved `Data` value.
 4. Applies the saved `Data` values to the `EditContext.Model`.
 5. Hooks up `FieldChanged` to `OnFieldChanged` on `EditContext` to get all the user edits.
+6. Hooks up `OnSave` to `RecordSaved` on `EditStateService` to reset `EditFields`.
+
+```csharp
+protected override Task OnInitializedAsync()
+{
+    Debug.Assert(this.EditContext != null);
+
+    if (this.EditContext != null)
+    {
+        // Populates the EditField Collection
+        this.LoadEditState();
+        // Wires up to the EditContext OnFieldChanged event
+        this.EditContext.OnFieldChanged += this.FieldChanged;
+        this.EditStateService.RecordSaved += this.OnSave;
+    }
+    return Task.CompletedTask;
+}
+
+private void LoadEditState()
+{
+    this.GetEditFields();
+    if (EditStateService.IsDirty)
+        SetEditState();
+}
+
+/// Populates EditFields with the initla values from the loaded model
+private void GetEditFields()
+{
+    var model = this.EditContext.Model;
+    this.EditFields.Clear();
+    if (model is not null)
+    {
+        var props = model.GetType().GetProperties();
+        foreach (var prop in props)
+        {
+            if (prop.CanWrite)
+            {
+                var value = prop.GetValue(model);
+                EditFields.AddField(model, prop.Name, value);
+            }
+        }
+    }
+}
+
+/// Applies the saved edit state to EditFields
+private void SetEditState()
+{
+    var recordtype = this.EditContext.Model.GetType();
+    object data = JsonSerializer.Deserialize(EditStateService.Data, recordtype);
+    if (data is not null)
+    {
+        var props = data.GetType().GetProperties();
+        foreach (var property in props)
+        {
+            var value = property.GetValue(data);
+            EditFields.SetField(property.Name, value);
+        }
+        this.SetModelToEditState();
+        if (EditFields.IsDirty)
+            this.EditStateChanged.InvokeAsync(true);
+    }
+}
+
+/// Sets the Model values to the saved edit state values
+private void SetModelToEditState()
+{
+    var model = this.EditContext.Model;
+    var props = model.GetType().GetProperties();
+    foreach (var property in props)
+    {
+        var value = EditFields.GetEditValue(property.Name);
+        if (value is not null && property.CanWrite)
+            property.SetValue(model, value);
+    }
+}
+
+```
 
 `EditFormState.FieldChanged` is triggered by a input change:
 1. Reads the current `IsDirty`.
@@ -139,6 +239,58 @@ It gets the model from the `EditContext` and saves the model write properties to
 5. Updates the `EditStateService` edit state.  Either updates it if the edit state is dirty or clears it if the edit state is clean.
 6. Sets/resets the `PageExitCheck` - more later.
 
+```csharp
+private async void FieldChanged(object sender, FieldChangedEventArgs e)
+{
+    var isDirty = EditFields?.IsDirty ?? false;
+    // Get the PropertyInfo object for the model property
+    // Uses reflection to get property and value
+    var prop = e.FieldIdentifier.Model.GetType().GetProperty(e.FieldIdentifier.FieldName);
+    if (prop != null)
+    {
+        // Get the value for the property
+        var value = prop.GetValue(e.FieldIdentifier.Model);
+        // Sets the edit value in the EditField
+        EditFields.SetField(e.FieldIdentifier.FieldName, value);
+        // Invokes EditStateChanged if changed
+        var stateChange = (EditFields?.IsDirty ?? false) != isDirty;
+        isDirty = EditFields?.IsDirty ?? false;
+        if (stateChange)
+            await this.EditStateChanged.InvokeAsync(isDirty);
+        if (isDirty)
+            this.SaveEditState();
+        else
+            this.ClearEditState();
+    }
+}
+
+private void SaveEditState()
+{
+    this.SetPageExitCheck(true);
+    var jsonData = JsonSerializer.Serialize(this.EditContext.Model);
+    EditStateService.SetEditState(jsonData);
+}
+
+private void ClearEditState()
+{
+    this.SetPageExitCheck(false);
+    EditStateService.ClearEditState();
+}
+
+private void SetPageExitCheck(bool action)
+    => _js.InvokeAsync<bool>("cecblazor_setEditorExitCheck", action);
+
+```
+
+`OnSave`  clears the current edit state and reloads `EditFields` from the update `model`.
+
+```csharp
+private void OnSave(object sender, EventArgs e)
+{
+    this.ClearEditState();
+    this.LoadEditState();
+}
+```
 
 ### Extra Site Navigation
 
@@ -169,6 +321,7 @@ This can then be called from Blazor:
 
 private void SetPageExitCheck(bool action)
     => _js.InvokeAsync<bool>("cecblazor_setEditorExitCheck", action);
+
 ```
 
 `SetPageExitCheck` is used in setting and clearing the edit state in `EditFormState`
@@ -266,7 +419,7 @@ public class RouteViewManager : IComponent
 }
 ```
 
-We add some button event handlers to handle the two Dirty Form options and a method to set the browser page exit event.
+The component has two button event handlers to handle the two Dirty Form options and a method to set the browser page exit event.
 
 ```csharp
 private Task DirtyExit(MouseEventArgs e)
@@ -287,7 +440,7 @@ private void SetPageExitCheck(bool action)
     }
 ```
 
-We then have a render fragment to build out the layout which adds either `_dirtyExitFragment` to build the Dirty Exit view or `_renderComponentWithParameters` to build out the route component. 
+A render fragment to build out the layout which adds either `_dirtyExitFragment` to build the Dirty Exit view or `_renderComponentWithParameters` to build out the route component. 
 
 ```csharp
 private RenderFragment _layoutViewFragment => builder =>
@@ -366,11 +519,11 @@ private RenderFragment _renderComponentWithParameters => builder =>
 
 ## Updating the Data Model
 
-There are sopme changes that we need to make to make this work correctly and add some structure to the data layers.
+The data model needs some changes to make to make this work correctly and add some structure to the data layers.
 
 ### WeatherForecast
 
-Add a `Copy` method to create a copy of the instance.
+`WeatherForecast` has a `Copy` method to create a copy of the instance.
 
 ```csharp
 public class WeatherForecast
@@ -394,7 +547,7 @@ public class WeatherForecast
 
 ### WeatherForecastDataService
 
-The data service.  It builds a list of Weather Forecasts and adds data access methods to get a list, an individual record and update a record.  Note we preserve our original data by using the `Copy` method to get copies to pass to the View Service.
+The data service.  It builds a list of Weather Forecasts and adds data access methods to get a list, an individual record and update a record.  Note the service preserves the original data using `Copy` to create copies to pass to the View Service.
 
 ```csharp
 public class WeatherForecastDataService
@@ -525,12 +678,11 @@ public void ConfigureServices(IServiceCollection services)
     services.AddBlazorForms();
 }
 ```
-
 ## Updating the Forms
 
 ### FetchData
 
-Make some changes to `FetchData` to handle the new View Service, and add the editing option.  
+`FetchData` has changes to handle the new View Service and editing.  
 
 ```csharp
 page "/fetchdata"
@@ -598,7 +750,9 @@ else
 
 ### Weather Editor
 
-I've added various UI components to the library to make form building simpler.  I'll not cover there here.  You can explore them in the repository.
+Various UI components are used to make form building simpler.  They're not covered here.  You can explore them in the repository.
+
+The Editor Razor code:
 
 ```csharp
 @using Blazor.EditForms.Components
@@ -637,6 +791,8 @@ I've added various UI components to the library to make form building simpler.  
     </EditForm>
 </UILoader>
 ```
+
+And the code behind.
 
 ```csharp
 public partial class WeatherEditor : IDisposable
@@ -694,7 +850,7 @@ public partial class WeatherEditor : IDisposable
 
 ### App.razor
 
-App now uses the new `RouteViewManager` component.
+App is set to use the new `RouteViewManager` component.
 
 ```csharp
 @using Blazor.SPA.Components
@@ -710,7 +866,6 @@ App now uses the new `RouteViewManager` component.
     </NotFound>
 </Router>
 ```
-
 ## The Solution
 
 Run the solution go to **FetchData** and click on Edit a record.  You will see:
@@ -736,10 +891,5 @@ Finally hit F5 to reload the page.
 ![Dirty Editor](./images/Dirty-App-Exit.png)
 
 This time you get the browser challenge - the text depends on the specific browser - they all implement the challenge slightly differently.
-
-
-
-
-
 
 
