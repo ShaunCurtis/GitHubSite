@@ -2,7 +2,7 @@
 title: Part 4 - UI Components
 oneliner: This article describes how to build UI Components.
 precis: This article looks at the components we use in the UI and then focuses on how to build generic UI Components from HTML and CSS.
-date: 2020-10-03
+date: 2021-07-04
 published: 2020-10-03
 ---
 
@@ -25,11 +25,11 @@ The repository for the articles has move to [CEC.Blazor.SPA Repository](https://
 
 There's a SQL script in /SQL in the repository for building the database.
 
-[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-server.azurewebsites.net/).
+[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
 
 ### Components
 
-For a detailed look at components read my article [A Dive into Blazor Components](https://www.codeproject.com/Articles/5277618/A-Dive-into-Blazor-Components).
+For a detailed look at components read my article [A Dive into Blazor Components](https://shauncurtis.github.io/articles/Blazor-Components.html).
 
 Everything in the Blazor UI, other than the start page, is a component.  Yes App, Router,... they're all components.  Not all components emit Html.
 
@@ -41,20 +41,21 @@ You can divide components into four categories:
 
 ### RouteViews
 
-RouteViews are application specific, the only difference between a RouteView and a Form is a RouteView declares one or more routes through the `@Page` directive.  The `Router` component declared in the root `App` sets the `AppAssembly` to a secific code assembly.  This is the assembly that `Router` trawls though on startup to find all the declared routes.
+RouteViews are application specific.  The only difference between a RouteView and a Form is a RouteView declares one or more routes through the `@Page` directive - or directly as a `[RouteAttribute]` on a class.  On the `Router` component declared in the root `App`,  `AppAssembly` specifies the assembly that `Router` trawls on initialization to find all the declared routes.
 
-In the application RouteViews are decalred in the WASM application library. 
+In the application RouteViews are declared in the WASM application library and are common to both WASM and Server SPAs. 
 
 The Weather Forecast Viewer and List Views are shown below.
 
 ```csharp
 // Blazor.Database/RouteViews/Weather/WeatherViewer.cs
-@page "/weather/view/{ID:int}"
+@page "/weather/view/{ID:Guid}"
+@namespace Blazor.Database.RouteViews
 
 <WeatherForecastViewerForm ID="this.ID" ExitAction="this.ExitToList"></WeatherForecastViewerForm>
 
 @code {
-    [Parameter] public int ID { get; set; }
+    [Parameter] public Guid ID { get; set; }
 
     [Inject] public NavigationManager NavManager { get; set; }
 
@@ -67,8 +68,34 @@ The Weather Forecast Viewer and List Views are shown below.
 ```csharp
 // Blazor.Database/RouteViews/Weather/FetchData.cs
 @page "/fetchdata"
+@namespace Blazor.Database.RouteViews
 
-<WeatherForecastComponent></WeatherForecastComponent>
+<WeatherForecastListForm EditRecord="this.GoToEditor" ViewRecord="this.GoToViewer" NewRecord="this.GoToNew" ExitAction="Exit"></WeatherForecastListForm>
+
+@code {
+
+    [Inject] NavigationManager NavManager { get; set; }
+
+    private bool _isWasm => NavManager?.Uri.Contains("wasm", StringComparison.CurrentCultureIgnoreCase) ?? false;
+
+    public void GoToEditor(Guid id)
+    => this.NavManager.NavigateTo($"weather/edit/{id}");
+
+    public void GoToNew()
+    => this.NavManager.NavigateTo($"weather/edit/{Guid.Empty}");
+
+    public void GoToViewer(Guid id)
+    => this.NavManager.NavigateTo($"weather/view/{id}");
+
+    public void Exit()
+    {
+        if (_isWasm)
+            this.NavManager.NavigateTo($"/wasm");
+        else
+            this.NavManager.NavigateTo($"/");
+    }
+
+}
 ```
 
 ### Forms
@@ -78,8 +105,8 @@ We saw Forms in the last article.  They're specific to the application.
 The code below shows the Weather Viewer.  It's all UI Controls, no HTML markup.
 
 ```html
-// Blazor.Database/Components/Forms/WeatherForecastViewerForm.razor
-@namespace Blazor.Database.Components
+// Blazor.Database/Forms/WeatherForecast/WeatherForecastViewerForm.razor
+@namespace Blazor.Database.Forms
 @inherits RecordFormBase<WeatherForecast>
 
 <UIContainer>
@@ -140,15 +167,15 @@ The code below shows the Weather Viewer.  It's all UI Controls, no HTML markup.
 The code behind page is relatively simple - the complexity is in the boilerplate code in the parent classes.  It loads the record specific Controller service.
 
 ```csharp
-// Blazor.Database/Components/Forms/WeatherForecastViewerForm.razor.cs
+// Blazor.Database/Forms/WeatherForecast/WeatherForecastViewerForm.razor.cs
 public partial class WeatherForecastViewerForm : RecordFormBase<WeatherForecast>
 {
 
-    [Inject] private WeatherForecastControllerService ControllerService { get; set; }
+    [Inject] private WeatherForecastViewService ViewService { get; set; }
 
     protected async override Task OnInitializedAsync()
     {
-        this.Service = this.ControllerService;
+        this.Service = this.ViewService;
         await base.OnInitializedAsync();
     }
 }
@@ -156,33 +183,59 @@ public partial class WeatherForecastViewerForm : RecordFormBase<WeatherForecast>
 
 ## UI Controls
 
-UI Controls emit HTML and CSS markup.  All the controls here are based on the Bootstrap CSS Framework.  All controls inherit from `ComponentBase` and UI Controls inherit from `UIBase`.
+UI Controls emit HTML and CSS markup.  All the controls here are based on the Bootstrap CSS Framework.  All controls inherit from `ComponentBase` and UI Controls inherit from `UIComponent`.
 
-#### UIBase
+#### AppComponentBase
 
-`UIBase` inherits from `Component`.  It builds an HTML DIV block that you can turn on or off.
+`AppComponentBase` inherits from `ComponentBase` and adds functionality to manage splatter attributes and the `Childcontent` render fragment.
 
-Lets look at some of `UIBase` in detail.
+```csharp
+public class AppComponentBase : ComponentBase
+{
+    [Parameter] public RenderFragment ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IDictionary<string, object> UserAttributes { get; set; } = new Dictionary<string, object>();
+
+    protected virtual List<string> UnwantedAttributes { get; set; } = new List<string>();
+
+    protected Dictionary<string, object> SplatterAttributes
+    {
+        get
+        {
+            var list = new Dictionary<string, object>();
+            foreach (var item in UserAttributes)
+            {
+                if (!UnwantedAttributes.Any(item1 => item1.Equals(item.Key)))
+                    list.Add(item.Key, item.Value);
+            }
+            return list;
+        }
+    }
+}
+```
+
+#### UIComponent
+
+`UIComponent` inherits from `AppComponentBase`.  It builds an HTML DIV block that you can turn on or off.
+
+Lets look at some of `UIComponent` in detail.
 
 The HTML block tag can be set using the `Tag` parameter.  It can only be set by inherited classes.
 
 ```csharp
-protected virtual string HtmlTag => "div";
+[Parameter] public string Tag { get; set; } = null;
+protected virtual string HtmlTag => this.Tag ?? "div";
 ```
 
-The control Css class is built using a `CssBuilder` class.  Inheriting classes can set a primary Css value and add as many secondary values they wish.  Add on CSS classes can be added either through the `AdditionalClasses` parameter or by defining a `class` attribute.
+The control Css class is built using a `CssBuilder` class.  Inheriting classes can add Css to the `CssClasses` collection.  External css can be set using the `class` attribute on the control.
 
 ```csharp
-[Parameter] public virtual string AdditionalClasses { get; set; } = string.Empty;
-protected virtual string PrimaryClass => string.Empty;
-protected List<string> SecondaryClass { get; private set; } = new List<string>();
-
+protected virtual List<string> CssClasses { get; private set; } = new List<string>();
 protected string CssClass
-=> CSSBuilder.Class(this.PrimaryClass)
-    .AddClass(SecondaryClass)
-    .AddClass(AdditionalClasses)
-    .AddClassFromAttributes(this.UserAttributes)
-    .Build();
+    => CSSBuilder.Class()
+        .AddClass(CssClasses)
+        .AddClassFromAttributes(this.UserAttributes)
+        .Build();
 ```
 
 The control can be hidden or disabled with two parameters.  When `Show` is true `ChildContent` is displayed.  When `Show` is false `HideContent` is displayed if it isn't `null`, otherwise nothing is displayed.
@@ -190,15 +243,13 @@ The control can be hidden or disabled with two parameters.  When `Show` is true 
 ```csharp
 [Parameter] public bool Show { get; set; } = true;
 [Parameter] public bool Disabled { get; set; } = false;
-[Parameter] public RenderFragment ChildContent { get; set; }
-[Parameter] public RenderFragment HideContent { get; set; }
+[Parameter] public EventCallback<MouseEventArgs> ClickEvent { get; set; }
 ```
 
-
-Finally the control captures any additional attributes and adds them to the markup element.
+Finally the control sets the attributes to remove from the splatter attributes.
 
 ```csharp
-[Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object> UserAttributes { get; set; } = new Dictionary<string, object>();
+protected override List<string> UnwantedAttributes { get; set; } = new List<string>() { "class" };
 ```
 
 The control builds the `RenderTree` in code.
@@ -211,9 +262,10 @@ protected override void BuildRenderTree(RenderTreeBuilder builder)
         builder.OpenElement(0, this.HtmlTag);
         if (!string.IsNullOrWhiteSpace(this.CssClass)) builder.AddAttribute(1, "class", this.CssClass);
         if (Disabled) builder.AddAttribute(2, "disabled");
-        builder.AddMultipleAttributes(3, this.UserAttributes);
-        if (this.ChildContent != null) builder.AddContent(4, ChildContent);
-        else if (this.HideContent != null) builder.AddContent(5, HideContent);
+        if (ClickEvent.HasDelegate)
+            builder.AddAttribute(3, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, ClickEvent));
+        builder.AddMultipleAttributes(3, this.SplatterAttributes);
+        builder.AddContent(4, ChildContent);
         builder.CloseElement();
     }
 }
@@ -226,70 +278,69 @@ The rest of the article looks at a few of the UI controls in more detail.
 #### UIButton
 
 This is a standard Bootstrap Button. 
-1. `Type` sets the button type.
-2. `PrimaryClass` is set.
-3. `ButtonClick` handles the button click event and calls the EventCallback.
-5. `Show` and `Disabled` handle button state.
+1. `Type` is set through the `type` attribute.
+2. A Css Class is added.
+3. The button colour is set through the `class` attribute.
+4. The Tag is set to `button`
+5. `ButtonClick`, `Show` and `Disabled` are handled by the base component.
 
 ```csharp
-// Blazor.SPA/Components/UIComponents/Base/UIButtons.cs
-@namespace Blazor.SPA.Components
-@inherits UIBase
-@if (this.Show)
+// Blazor.SPA/Components/UIComponents/Forms/UIButtons.cs
+public class UIButton : UIComponent
 {
-    <button class="@this.CssClass" @onclick="ButtonClick" type="@Type" disabled="@this.Disabled" @attributes="UserAttributes">
-        @this.ChildContent
-    </button>
-}
-@code {
-    [Parameter] public string Type { get; set; } = "button";
-    [Parameter] public EventCallback<MouseEventArgs> ClickEvent { get; set; }
-    protected override string PrimaryClass => "btn mr-1";
-    protected async Task ButtonClick(MouseEventArgs e) => await this.ClickEvent.InvokeAsync(e);
+    public UIButton()
+        => this.CssClasses.Add("btn mr-1");
+
+    protected override string HtmlTag => "button";
 }
 ```
 
 Here's some code showing the control in use.
 
 ```html
-<UIButton Show="true" Disabled="this._dirtyExit" AdditionalClasses="btn-dark" ClickEvent="() => this.Exit()">Exit</UIButton>
-```
-
-#### UIColumn
-
-This is a standard Bootstrap Column. 
-1. `Cols` defines the number of columns
-2. `PrimaryCss` is built from`Cols`.
-3. `Base` `RenderTreeBuilder` builds out the control as a *div*. 
-
-```csharp
-// Blazor.SPA/Components/UIControls/Base/UIColumn.cs
-public class UIColumn : UIBase
-{
-    [Parameter] public virtual int Cols { get; set; } = 0;
-    protected override string PrimaryClass => this.Cols > 0 ? $"col-{this.Cols}" : $"col";
-}
+<UIButton Show="true" Disabled="this._dirtyExit" class="btn-dark" ClickEvent="() => this.Exit()">Exit</UIButton>
 ```
 
 #### UILoader
 
-This is a wrapper control designed to save implementing error checking in child content. It only renders it's child content when `IsLoaded` is true. The control saves implementing a lot of error checking in the child content.
+This is a wrapper control designed to save implementing error checking in child content. It only renders child content when `State` is `Loaded`.  It displays alternative content when the view is loading or in error.
 
 ```csharp
 @namespace Blazor.SPA.Components
-@inherits UIBase
-
-@if (this.Loaded)
+@inherits ComponentBase
+@if (this.State == ComponentState.Loaded)
 {
     @this.ChildContent
 }
+else if (this.State == ComponentState.InError)
+{
+    if (this.ErrorContent != null)
+    {
+        @this.ErrorContent
+    }
+    else
+    {
+        <div class="m-2 p-2">Error Loading Content</div>
+    }
+}
 else
 {
-    <div>Loading....</div>
+    if (this.LoadingContent != null)
+    {
+        @this.LoadingContent
+    }
+    else
+    {
+        <div class="m-2 p-2">Loading......</div>
+    }
 }
+@code{
 
-@code {
-    [Parameter] public bool Loaded { get; set; }
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public RenderFragment LoadingContent { get; set; }
+    [Parameter] public RenderFragment ErrorContent { get; set; }
+    [Parameter] public ComponentState State { get; set; } = ComponentState.Loaded;
+
 }
 ```
 
@@ -300,32 +351,39 @@ You can see the control in use in the Edit and View forms.
 These controls create the BootStrap grid system - i.e. container, row and column - by building out DIVs with the correct Css.
 
 ```csharp
-public class UIContainer : UIBase
+public class UIContainer : UIComponent
 {
-    protected override string PrimaryClass => "container-fluid";
+    public UIContainer()
+        => CssClasses.Add("container - fluid");
 }
 ```
 
 ```csharp
-class UIRow : UIBase
+class UIRow : UIComponent
 {
-    protected override string PrimaryClass => "row";
+    public UIRow()
+        => CssClasses.Add("row");
 }
 ```
 
 ```csharp
-public class UIColumn : UIBase
+public class UIColumn : UIComponent
 {
     [Parameter] public virtual int Cols { get; set; } = 0;
-    protected override string PrimaryClass => this.Cols > 0 ? $"col-{this.Cols}" : $"col";
+
+    public UIColumn()
+        => CssClasses.Add(this.Cols > 0 ? $"col-{this.Cols}" : $"col");
 }
 ```
 
 ```csharp
-// CEC.Blazor/Components/UIControls/UIBootstrapContainer/UILabelColumn.cs
 public class UILabelColumn : UIColumn
 {
-    protected override string _BaseCss => $"col-{Columns} col-form-label";
+    [Parameter] public override int Cols { get; set; } = 2;
+    [Parameter] public string FormCss { get; set; } = "form-label";
+
+    public UILabelColumn()
+        => this.CssClasses.Add(this.FormCss);
 }
 ```
 
@@ -347,17 +405,19 @@ Here's some code showing the controls in use.
 This article provides an overview on how to build UI Controls with components, and examines some example components in detail.  You can see all the library UIControls in the GitHub Repository
 
 Some key points to note:
-1. UI Controls let you abstract markup from higher level components such as Forms and Views.
-2. UI Controls give you control and applies some discipline over the HTML and CSS markup.
-3. View and Form components are much cleaner and easier to view.
-4. Use as little or as much abstraction as you wish.
-5. Controls, such as `UILoader`, just make life easier!
+1. They are simple, most of the functionality can be built in the base component.
+2. UI Controls abstract markup from higher level components such as Forms and Views.
+3. UI Controls give control and discipline over the HTML and CSS markup.
+4. View and Form components are much cleaner and easier to view.
+5. Use as little or as much abstraction as you wish.
+6. Controls, such as `UILoader`, just make life easier!
 
-If you're reading this article well into the future, check the readme in the repository for the latest version of the article set.
+Check the readme in the repository for the latest version of the article set.
 
 ## History
 
 * 21-Sep-2020: Initial version.
 * 17-Nov-2020: Major Blazor.CEC library changes.  Change to ViewManager from Router and new Component base implementation.
 * 29-Mar-2021: Major updates to Services, project structure and data editing.
+* 24-June-2021: revisions to data layers.
 

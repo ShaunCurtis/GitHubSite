@@ -2,7 +2,7 @@
 title: Part 5 - View Components - CRUD List Operations in the UI
 oneliner: This article describes how to build the View Components.
 precis: This article looks in detail at building reusable List Presentation Layer components and deploying them in both Server and WASM projects.
-date: 2020-10-05
+date: 2021-07-04
 published: 2020-10-03
 ---
 
@@ -23,7 +23,7 @@ This article looks in detail at building reusable List UI components and deployi
 
 ## Repository and Database
 
-The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  The older repositories are now obselete and will be removed soon.
+The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  The older repositories are obselete and have been removed.
 
 There's a SQL script in /SQL in the repository for building the database.
 
@@ -44,71 +44,70 @@ List components present more challenges than other CRUD components.  Functionali
 
 The code is shown below
 ```csharp
-    public abstract class ListFormBase<TRecord> : ComponentBase, IDisposable where TRecord : class, IDbRecord<TRecord>, new()
+public abstract class ListFormBase<TRecord> : ComponentBase, IDisposable
+    where TRecord : class, IDbRecord<TRecord>, new()
+{
+    [Parameter] public EventCallback<Guid> EditRecord { get; set; }
+    [Parameter] public EventCallback<Guid> ViewRecord { get; set; }
+    [Parameter] public EventCallback<Guid> NewRecord { get; set; }
+    [Parameter] public EventCallback ExitAction { get; set; }
+
+    [Inject] protected NavigationManager NavManager { get; set; }
+
+    protected IModelViewService<TRecord> Service { get; set; }
+    protected bool IsLoaded => this.Service?.HasRecords ?? false;
+    protected ComponentState LoadState => IsLoaded ? ComponentState.Loaded : ComponentState.Loading;
+    protected bool HasService => this.Service != null;
+
+    protected override async Task OnInitializedAsync()
     {
-        /// Callbacks for Edit/View/New/Exit Actions
-        [Parameter] public EventCallback<int> EditRecord { get; set; }
-        [Parameter] public EventCallback<int> ViewRecord { get; set; }
-        [Parameter] public EventCallback<int> NewRecord { get; set; }
-        [Parameter] public EventCallback ExitAction { get; set; }
-
-        /// Controller Data Service
-        [Inject] protected IFactoryControllerService<TRecord> Service { get; set; }
-        [Inject] protected NavigationManager NavManager { get; set; }
-
-        /// Booleans for Service and Recordlist state
-        protected bool IsLoaded => this.Service?.HasRecords ?? false;
-        protected bool HasService => this.Service != null;
-
-        protected override async Task OnInitializedAsync()
+        if (HasService)
         {
-            if (this.HasService)
-            {
-                await this.Service.GetRecordsAsync();
-                this.Service.ListHasChanged += OnListChanged;
-            }
+            await this.Service.GetRecordsAsync();
+            this.Service.ListHasChanged += OnListChanged;
         }
-
-        /// Call StatehasChanged if list changed
-        protected void OnListChanged(object sender, EventArgs e)
-            => this.InvokeAsync(this.StateHasChanged);
-
-        /// Event handlers to call EventCallbacks
-        protected virtual void Edit(int id)
-            => this.EditRecord.InvokeAsync(id);
-        protected virtual void View(int id)
-            => this.ViewRecord.InvokeAsync(id);
-        protected virtual void New()
-            => this.NewRecord.InvokeAsync();
-        protected virtual void Exit()
-        {
-            if (ExitAction.HasDelegate)
-                ExitAction.InvokeAsync();
-            else
-                this.NavManager.NavigateTo("/");
-        }
-
-        /// IDisosable Interface implementation
-        public void Dispose()
-            => this.Service.ListHasChanged -= OnListChanged;
     }
+
+    protected void OnListChanged(object sender, EventArgs e)
+        => this.InvokeAsync(this.StateHasChanged);
+
+    protected virtual void Edit(Guid id)
+        => this.EditRecord.InvokeAsync(id);
+
+    protected virtual void View(Guid id)
+        => this.ViewRecord.InvokeAsync(id);
+
+    protected virtual void New()
+        => this.NewRecord.InvokeAsync();
+
+    protected virtual void Exit()
+    {
+        if (ExitAction.HasDelegate)
+            ExitAction.InvokeAsync();
+        else
+            this.NavManager.NavigateTo("/");
+    }
+
+    public void Dispose()
+        => this.Service.ListHasChanged -= OnListChanged;
+}
 ```
 
 ### Paging and Sorting
 
-Paging and sorting is implemented by a `Paginator` class that resides in the ControllerService.  There are UI components that interact with the `Paginator`: `PaginatorControl` and `SortControl`.
+Paging and sorting is implemented by a `RecordPager` class that resides in the ControllerService.  There are UI components that interact with the `RecordPager`: `DataPagingControl` and `SortControl`.
 
-You can see `PaginatorControl` in use in a list form - here in the left side of a button row at the bottom of the form
+You can see `DataPagingControl` in use in a list form - here in the left side of a button row at the bottom of the form
 
 ```csharp
 <UIContainer>
     <UIFormRow>
         <UIColumn Cols="8">
-            <PaginatorControl Paginator="this.Service.Paginator"></PaginatorControl>
+            <DataPagingControl RecordPager="this.ViewService.RecordPager"></DataPagingControl>
         </UIColumn>
         <UIButtonColumn Cols="4">
-            <UIButton Show="true" AdditionalClasses="btn-success" ClickEvent="() => this.New()">New Record</UIButton>
-            <UIButton AdditionalClasses="btn-secondary" ClickEvent="this.Exit">Exit</UIButton>
+            <UIButton type="button" Show="true" class="btn-success" ClickEvent="() => this.New()">New Record</UIButton>
+            <UIButton type="button" class="btn-secondary" ClickEvent="this.Exit">Exit</UIButton>
         </UIButtonColumn>
     </UIFormRow>
 </UIContainer>
@@ -118,7 +117,7 @@ And `SortControl` in action in the header row of a list form.
   
 ```csharp
 <head>
-    <SortControl Paginator="this.Service.Paginator">
+    <SortControl RecordPager="this.Service.RecordPager">
         <UIDataTableHeaderColumn SortField="ID">ID</UIDataTableHeaderColumn>
         <UIDataTableHeaderColumn SortField="Date">Date</UIDataTableHeaderColumn>
         ...
@@ -126,41 +125,43 @@ And `SortControl` in action in the header row of a list form.
 </head>
 ```
 
-#### Paginator
+#### RecordPager
 
-The Controller Service holds the `Paginator` instance used by list forms.  The code is self explanatory, providing the functionality for paging operations.  It's passed to the Data Service to retrieve the correct sorted page through the `PaginatorData` class.
+The Controller Service holds the `RecordPager` instance used by list forms.  The code is self explanatory, providing the functionality for paging operations.  It's passed to the Data Service to retrieve the correct sorted page through the `RecordPagingData` class.
 
 ```csharp
-public class Paginator
+public class RecordPager
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
     public int BlockSize { get; set; } = 10;
     public int RecordCount { get; set; } = 0;
-    public event EventHandler PageChanged;
+
     public string SortColumn
     {
         get => (!string.IsNullOrWhiteSpace(_sortColumn)) ? _sortColumn : DefaultSortColumn;
         set => _sortColumn = value;
     }
+
     private string _sortColumn = string.Empty;
     public string DefaultSortColumn { get; set; } = "ID";
     public bool SortDescending { get; set; }
 
-    public int LastPage => (int)((RecordCount / PageSize) + 0.5);
+    public RecordPager(int pageSize, int blockSize)
+    {
+        this.BlockSize = blockSize;
+        this.PageSize = pageSize;
+    }
+
+    public event EventHandler PageChanged;
+
+    public int LastPage => (int)Math.Ceiling((RecordCount / PageSize) + 0.5);
     public int LastBlock => (int)((LastPage / BlockSize) + 1.5);
     public int CurrentBlock => (int)((Page / BlockSize) + 1.5);
     public int StartBlockPage => ((CurrentBlock - 1) * BlockSize) + 1;
     public int EndBlockPage => StartBlockPage + BlockSize;
     public bool HasBlocks => ((RecordCount / (PageSize * BlockSize)) + 0.5) > 1;
     public bool HasPagination => (RecordCount / PageSize) > 1;
-
-
-    public Paginator(int pageSize, int blockSize)
-    {
-        this.BlockSize = blockSize;
-        this.PageSize = pageSize;
-    }
 
     public void ToPage(int page, bool forceUpdate = false)
     {
@@ -176,26 +177,28 @@ public class Paginator
 
     public void PreviousPage()
                 => this.ToPage(this.Page - 1);
+
     public void ToStart()
         => this.ToPage(1);
 
     public void ToEnd()
-        => this.ToPage((int)((RecordCount / PageSize) + 0.5));
+        => this.ToPage((int)Math.Ceiling((RecordCount / PageSize) + 0.5));
 
     public void NextBlock()
     {
         if (CurrentBlock != LastBlock)
         {
-            var calcpage = (CurrentBlock * PageSize * BlockSize) + 1;
+            var calcpage = (CurrentBlock * BlockSize) + 1;
             this.Page = calcpage > LastPage ? LastPage : LastPage;
             this.PageChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
     public void PreviousBlock()
     {
         if (CurrentBlock != 1)
         {
-            this.Page = ((CurrentBlock - 1) * PageSize * BlockSize) - 1;
+            this.Page = ((CurrentBlock - 2) * PageSize) + 1;
             this.PageChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -203,7 +206,7 @@ public class Paginator
     public void NotifySortingChanged()
         => this.ToPage(1, true);
 
-    public PaginatorData GetData => new PaginatorData()
+    public RecordPagingData GetData => new RecordPagingData()
     {
         Page = this.Page,
         PageSize = this.PageSize,
@@ -215,12 +218,12 @@ public class Paginator
 }
 ```
 
-#### PaginatorData
+#### RecordPagingData
 
-This is the class used to pass data into the dat services.  This has to be passed via json though the api so "keep it simple"/
+This is the class used to pass data into the dats services.  This has to be passed via json though the api so "keep it simple".
 
 ```csharp
-    public class PaginatorData
+    public class RecordPagingData
     {
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 25;
@@ -231,31 +234,31 @@ This is the class used to pass data into the dat services.  This has to be passe
     }
 ```
 
-#### PaginatorControl
+#### DataPagingControl
 
 The code again is self-explanatory, building out a Bootstrap ButtonGroup.  I've kept away from using icons, you can if you wish.
 
 ```html
 @namespace Blazor.SPA.Components
 
-@if (this.hasPaginator)
+@if (this.hasPagination)
 {
     <nav aria-label="...">
         <ul class="pagination">
             <li class="page-item">
-                <a class="page-link" @onclick="() => this.Paginator.ToStart()">&vert;&lt;</a>
+                <a class="page-link" @onclick="() => this.RecordPager.ToStart()">&vert;&lt;</a>
             </li>
-            @if (this.Paginator.HasBlocks)
+            @if (this.RecordPager.HasBlocks)
             {
                 <li class="page-item">
-                    <a class="page-link" @onclick="() => this.Paginator.PreviousBlock()">&lt;&lt;</a>
+                    <a class="page-link" @onclick="() => this.RecordPager.PreviousBlock()">&lt;&lt;</a>
                 </li>
             }
-            @for (var i = this.Paginator.StartBlockPage; i < this.Paginator.EndBlockPage; i++)
+            @for (var i = this.RecordPager.StartBlockPage; i < this.RecordPager.EndBlockPage; i++)
             {
                 var pageNo = i;
-                @if (pageNo > this.Paginator.LastPage) break;
-                @if (pageNo == this.Paginator.Page)
+                @if (pageNo > this.RecordPager.LastPage) break;
+                @if (pageNo == this.RecordPager.Page)
                 {
                     <li class="page-item active">
                         <span class="page-link">
@@ -267,26 +270,28 @@ The code again is self-explanatory, building out a Bootstrap ButtonGroup.  I've 
                 else
                 {
                     <li class="page-item">
-                        <a class="page-link" @onclick="() => this.Paginator.ToPage(pageNo)">@pageNo</a>
+                        <a class="page-link" @onclick="() => this.RecordPager.ToPage(pageNo)">@pageNo</a>
                     </li>
                 }
+
             }
-            @if (this.Paginator.HasBlocks)
+            @if (this.RecordPager.HasBlocks)
             {
                 <li class="page-item">
-                    <a class="page-link" @onclick="() => this.Paginator.NextBlock()">&gt;&gt;</a>
+                    <a class="page-link" @onclick="() => this.RecordPager.NextBlock()">&gt;&gt;</a>
                 </li>
             }
             <li class="page-item">
-                <a class="page-link" @onclick="() => this.Paginator.ToEnd()">&gt;&vert;</a>
+                <a class="page-link" @onclick="() => this.RecordPager.ToEnd()">&gt;&vert;</a>
             </li>
         </ul>
     </nav>
 }
 
 @code {
-    [Parameter] public Paginator Paginator { get; set; }
-    private bool hasPaginator => this.Paginator != null && this.Paginator.HasPagination;
+    [Parameter] public RecordPager RecordPager { get; set; }
+
+    private bool hasPagination => this.RecordPager != null && this.RecordPager.HasPagination;
 }
 ```
 
@@ -302,12 +307,13 @@ The `SortControl` is used in a list header. It cascades itself and provides the 
 </CascadingValue>
 
 @code {
+
     [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public string NotSortedClass { get; set; } = "sort-column oi oi-resize-height";
     [Parameter] public string AscendingClass { get; set; } = "sort-column oi oi-sort-ascending";
     [Parameter] public string DescendingClass { get; set; } = "sort-column oi oi-sort-descending";
     [Parameter] public EventCallback<SortingEventArgs> Sort { get; set; }
-    [Parameter] public Paginator Paginator { get; set; }
+    [Parameter] public RecordPager RecordPager { get; set; }
     public string SortColumm { get; private set; } = string.Empty;
     public bool Descending { get; private set; } = false;
 
@@ -333,11 +339,11 @@ The `SortControl` is used in a list header. It cascades itself and provides the 
 
     private void Notify()
     {
-        if (Paginator != null)
+        if (RecordPager != null)
             {
-            Paginator.SortDescending = this.Descending;
-            Paginator.SortColumn = this.SortColumm;
-            Paginator.NotifySortingChanged();
+            RecordPager.SortDescending = this.Descending;
+            RecordPager.SortColumn = this.SortColumm;
+            RecordPager.NotifySortingChanged();
             }
         var args = SortingEventArgs.Get(this.SortColumm, this.Descending);
         if (Sort.HasDelegate) this.Sort.InvokeAsync(args);
@@ -347,21 +353,22 @@ The `SortControl` is used in a list header. It cascades itself and provides the 
 
 #### UIDataTableHeaderColumn
 
+This is the UI control that builds out each header column in a list.  It builds out the razor and Css class for the header and notifies the captured SortControl on any mouse click events.
 
-This is the UI control that builds out each header column in a list.  It builds out the razor and Css class for the header and notifies the captured  SortControl on any mouse click events.
 ```csharp
 @namespace Blazor.SPA.Components
+@inherits AppComponentBase
 
 @if (_isSortField)
 {
-    <th class="@this.CssClass" @attributes="UserAttributes" @onclick="SortClick">
+    <th class="@this.CssClass" @attributes="this.SplatterAttributes" @onclick="SortClick">
         <span class="@_iconclass"></span>
         @this.ChildContent
     </th>
 }
 else
 {
-    <th class="@this.CssClass" @attributes="UserAttributes">
+    <th class="@this.CssClass" @attributes="this.SplatterAttributes">
         @this.ChildContent
     </th>
 }
@@ -369,9 +376,8 @@ else
 @code {
 
     [CascadingParameter] public SortControl SortControl { get; set; }
-    [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public string SortField { get; set; } = string.Empty;
-    [Parameter(CaptureUnmatchedValues = true)] public IDictionary<string, object> UserAttributes { get; set; } = new Dictionary<string, object>();
+
     private bool _hasSortControl => this.SortControl != null;
     private bool _isSortField => !string.IsNullOrWhiteSpace(this.SortField);
     private string _iconclass => _hasSortControl && _isSortField ? this.SortControl.GetIcon(SortField) : string.Empty;
@@ -400,23 +406,23 @@ There are three list forms in the solution.  They demonstrate different UI appro
 2. The modal dialog approach - opening and closing modal dialogs within the list RouteView.
 3. The inline dialog approach - opening and closing a section within the RouteView to display/edit the record.
 
-The standard `WeatherForecastListForm` looks like this.  It inherits from `ListFormBase` with `WeatherForecast` as `TRecord`.  It assigns the `WeatherForecastControllerService` to the base `IFactoryControllerService` property `Service`.  Note it has a component Css file defining the custom Css used in the component.
+The standard `WeatherForecastListForm` looks like this.  It inherits from `ListFormBase` with `WeatherForecast` as `TRecord`.  It assigns the `WeatherForecastViewService` to the base `IModelViewService` property `Service`.  Note it has a component Css file defining the custom Css used in the component.
 
 ```csharp
-// Blazor.Database/Components/Forms/WeatherForecast/WeatherForecastListForm.razor.cs
+// Blazor.Database/Forms/WeatherForecast/WeatherForecastListForm.razor.cs
 public partial class WeatherForecastListForm : ListFormBase<WeatherForecast>
 {
-    [Inject] private WeatherForecastControllerService ControllerService { get; set; }
-    [Parameter] public bool IsModal {get; set;}
+    [Inject] private WeatherForecastViewService ViewService { get; set; }
+    [Parameter] public bool IsModal { get; set; }
+
     private BaseModalDialog Modal { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        this.Service = this.ControllerService;
+        this.Service = this.ViewService;
         await base.OnInitializedAsync();
     }
-
-    protected override async void Edit(int id)
+    protected override async void Edit(Guid id)
     {
         if (this.IsModal)
         {
@@ -427,7 +433,7 @@ public partial class WeatherForecastListForm : ListFormBase<WeatherForecast>
         else
             base.Edit(id);
     }
-    protected override async void View(int id)
+    protected override async void View(Guid id)
     {
         if (this.IsModal)
         {
@@ -455,20 +461,19 @@ public partial class WeatherForecastListForm : ListFormBase<WeatherForecast>
 
 The razor markup.  Note:
 1. The `SortControl` in the header and the `UIDataTableHeaderColumn` components building the header with the sortable columns.
-2. The `PaginatorControl` in the botton button row linked to the `Service.Paginator`.  Paging is event driven.  `PaginatorControl` paging requests are handled directly by `Paginator` in the controller service.  Updates trigger a `ListChanged` event in the service which triggers a UI update in the List Form.
+2. The `DataPagingControl` in the botton button row linked to the `Service.RecordPager`.  Paging is event driven.  `DataPagingControl` paging requests are handled directly by `RecordPager` in the controller service.  Updates trigger a `ListChanged` event in the service which triggers a UI update in the List Form.
 3. The `BaseModalDialog` added if the Form is using Modal Dialogs.
 
 ```html
-@namespace Blazor.Database.Components
+@namespace Blazor.Database.Forms
 @inherits ListFormBase<WeatherForecast>
 
 <h1>Weather Forecasts</h1>
 
-<UILoader Loaded="this.IsLoaded">
-    <UIDataTable TRecord="WeatherForecast" Records="this.ControllerService.Records" class="table">
+<UILoader State="this.LoadState">
+    <UIDataTable TRecord="WeatherForecast" Records="this.ViewService.Records" class="table">
         <Head>
-            <SortControl Paginator="this.Service.Paginator">
-                <UIDataTableHeaderColumn SortField="ID">ID</UIDataTableHeaderColumn>
+            <SortControl RecordPager="this.Service.RecordPager">
                 <UIDataTableHeaderColumn SortField="Date">Date</UIDataTableHeaderColumn>
                 <UIDataTableHeaderColumn SortField="TemperatureC">Temp. (C)</UIDataTableHeaderColumn>
                 <UIDataTableHeaderColumn>Temp. (F)</UIDataTableHeaderColumn>
@@ -479,15 +484,14 @@ The razor markup.  Note:
         </Head>
         <RowTemplate>
             <UIDataTableRow>
-                <UIDataTableColumn>@context.ID</UIDataTableColumn>
-                <UIDataTableColumn> @context.Date.ToShortDateString()</UIDataTableColumn>
+                <UIDataTableColumn> @context.Date.LocalDateTime.ToShortDateString()</UIDataTableColumn>
                 <UIDataTableColumn>@context.TemperatureC</UIDataTableColumn>
                 <UIDataTableColumn>@context.TemperatureF</UIDataTableColumn>
                 <UIDataTableColumn>@context.Summary</UIDataTableColumn>
                 <UIDataTableMaxColumn>@context.Description</UIDataTableMaxColumn>
                 <UIDataTableColumn class="text-right text-nowrap">
-                    <UIButton AdditionalClasses="btn-sm btn-secondary" ClickEvent="() => this.View(context.ID)">View</UIButton>
-                    <UIButton AdditionalClasses="btn-sm btn-primary" ClickEvent="() => this.Edit(context.ID)">Edit</UIButton>
+                    <UIButton type="button" class="btn-sm btn-secondary" ClickEvent="() => this.View(context.ID)">View</UIButton>
+                    <UIButton type="button" class="btn-sm btn-primary" ClickEvent="() => this.Edit(context.ID)">Edit</UIButton>
                 </UIDataTableColumn>
             </UIDataTableRow>
         </RowTemplate>
@@ -495,11 +499,11 @@ The razor markup.  Note:
     <UIContainer>
         <UIFormRow>
             <UIColumn Cols="8">
-                <PaginatorControl Paginator="this.ControllerService.Paginator"></PaginatorControl>
+                <DataPagingControl RecordPager="this.ViewService.RecordPager"></DataPagingControl>
             </UIColumn>
             <UIButtonColumn Cols="4">
-                <UIButton Show="true" AdditionalClasses="btn-success" ClickEvent="() => this.New()">New Record</UIButton>
-                <UIButton AdditionalClasses="btn-secondary" ClickEvent="this.Exit">Exit</UIButton>
+                <UIButton type="button" Show="true" class="btn-success" ClickEvent="() => this.New()">New Record</UIButton>
+                <UIButton type="button" class="btn-secondary" ClickEvent="this.Exit">Exit</UIButton>
             </UIButtonColumn>
         </UIFormRow>
     </UIContainer>
@@ -514,85 +518,96 @@ The razor markup.  Note:
 
 The application declares a set of intermediate Views for the list forms.  These are common to both the WASM and Server SPAs
 
-#### WeatherForecastComponent
+#### FetchData
 
 This is the multi RouteView implementation.  Event handlers are hooked up `WeatherForecastListForm` to route to the different RouteViews through the `NavigationManager`.
 
 ```html
-@namespace Blazor.Database.Components
+@page "/fetchdata"
+@namespace Blazor.Database.RouteViews
 
-<WeatherForecastListForm EditRecord="this.GoToEditor" ViewRecord="this.GoToViewer" NewRecord="this.GoToNew"></WeatherForecastListForm>
+<WeatherForecastListForm EditRecord="this.GoToEditor" ViewRecord="this.GoToViewer" NewRecord="this.GoToNew" ExitAction="Exit"></WeatherForecastListForm>
 
 @code {
 
     [Inject] NavigationManager NavManager { get; set; }
 
-    protected override Task OnInitializedAsync()
-    {
-        return base.OnInitializedAsync();
-    }
+    private bool _isWasm => NavManager?.Uri.Contains("wasm", StringComparison.CurrentCultureIgnoreCase) ?? false;
 
-    public void GoToEditor(int id)
-    => this.NavManager.NavigateTo($"/weather/edit/{id}");
+    public void GoToEditor(Guid id)
+    => this.NavManager.NavigateTo($"weather/edit/{id}");
 
     public void GoToNew()
-    => this.NavManager.NavigateTo($"/weather/edit/-1");
+    => this.NavManager.NavigateTo($"weather/edit/{Guid.Empty}");
 
-    public void GoToViewer(int id)
-    => this.NavManager.NavigateTo($"/weather/view/{id}");
+    public void GoToViewer(Guid id)
+    => this.NavManager.NavigateTo($"weather/view/{id}");
+
+    public void Exit()
+    {
+        if (_isWasm)
+            this.NavManager.NavigateTo($"/wasm");
+        else
+            this.NavManager.NavigateTo($"/");
+    }
 
 }
 ```
+
+#### FetchDataModal
+
 The modal implementation is simple.  It already handles editor/viewer state by enabling `IsModal`.  You don't really need it as you could declare `WeatherForecastListForm` directly in the RouteView.
 
 ```html
-@namespace Blazor.Database.Components
+@page "/fetchdataModal"
+@namespace Blazor.Database.RouteViews
 
 <WeatherForecastListForm IsModal="true"></WeatherForecastListForm>
 ```
 
-The inline dialog is the most complex.  It uses Ids to show/hide the Editor/Viewer through `UIBase`.
+The inline dialog is the most complex.  It uses Ids to show/hide the Editor/Viewer through `UIComponent`.
 
 ```html
-@namespace Blazor.Database.Components
+@page "/fetchdataInline"
 
-<UIBase Show="this.ShowEditor">
+@namespace Blazor.Database.RouteViews
+
+<UIComponent Show="this.ShowEditor">
     <WeatherForecastEditorForm ID="this.editorId" ExitAction="this.CloseDialog"></WeatherForecastEditorForm>
-</UIBase>
-<UIBase Show="this.ShowViewer">
-    <WeatherForecastViewerForm ID="this.editorId" ExitAction="this.CloseDialog"></WeatherForecastViewerForm>
-</UIBase>
+</UIComponent>
+<UIComponent Show="this.ShowViewer">
+    <WeatherForecastViewerForm ID="this.viewerId" ExitAction="this.CloseDialog"></WeatherForecastViewerForm>
+</UIComponent>
 
 <WeatherForecastListForm EditRecord="this.GoToEditor" ViewRecord="this.GoToViewer" NewRecord="this.GoToNew" ExitAction="Exit"></WeatherForecastListForm>
-
 ```
 ```csharp
 @code {
 
     [Inject] NavigationManager NavManager { get; set; }
 
-    private int editorId = 0;
-    private int viewerId = 0;
+    private Guid editorId = Guid.Empty;
+    private Guid viewerId = Guid.Empty;
 
-    private bool ShowViewer => this.viewerId != 0;
-    private bool ShowEditor => this.editorId != 0;
+    private bool ShowViewer => this.viewerId != Guid.Empty;
+    private bool ShowEditor => this.editorId != Guid.Empty;
 
-    public void GoToEditor(int id)
-        => SetIds(id, 0);
+    public void GoToEditor(Guid id)
+        => SetIds(id, Guid.Empty);
 
     public void GoToNew()
-        => SetIds(-1, 0);
+        => SetIds(Guid.Empty, Guid.Empty);
 
-    public void GoToViewer(int id)
-        => SetIds(0, id);
+    public void GoToViewer(Guid id)
+        => SetIds(Guid.Empty, id);
 
     public void CloseDialog()
-        => SetIds(0, 0);
+        => SetIds(Guid.Empty, Guid.Empty);
 
     public void Exit()
-        => this.NavManager.NavigateTo("/");
+        => this.NavManager.NavigateTo("index");
 
-    private void SetIds(int editorId, int viewerId)
+    private void SetIds(Guid editorId, Guid viewerId)
     {
         this.editorId = editorId;
         this.viewerId = viewerId;
@@ -600,39 +615,17 @@ The inline dialog is the most complex.  It uses Ids to show/hide the Editor/View
 }
 ```
 
-### The RouteViews (aka Pages)
-
-These simply declare routes and the top level form component.
-
- - Blazor.Database.WASM/RouteViews/Weather/xxx.razor
- - Blazor.Database.Server/RouteViews/Weather/xxx.razor
-
-```html
-@page "/fetchdata"
-<WeatherForecastComponent></WeatherForecastComponent>
-```
-
-```html
-@page "/fetchdataInline"
-<WeatherForecastInlineComponent></WeatherForecastInlineComponent>
-```
-
-```html
-@page "/fetchdataModal"
-<WeatherForecastListModal></WeatherForecastListModal>
-```
-
-
 ## Wrap Up
 That wraps up this article.  Some key points to note:
 1. There's no differences between the Blazor Server and Blazor WASM code base.
 2. 90% plus functionality is implemented in the library components as boilerplate generic code.  Most of the application code is Razor markup for the individual record forms.
 3. Async functionality is used throughout.
 
-If you're reading this article well into the future, check the readme in the repository for the latest version of the article set.
+Check the readme in the repository for the latest version of the article set.
     
 ## History
 
 * 25-Sep-2020: Initial version.
 * 17-Nov-2020: Major Blazor.CEC library changes.  Change to ViewManager from Router and new Component base implementation.
 * 31-Mar-2021: Major updates to Services, project structure and data editing.
+* 24-June-2021: revisions to data layers.
