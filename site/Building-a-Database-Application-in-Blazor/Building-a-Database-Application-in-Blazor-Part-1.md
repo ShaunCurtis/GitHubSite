@@ -13,7 +13,7 @@ This set of articles describes a framework for building and structuring Database
 
 It's just a framework.  I make no recommendations: use it or abuse it.  It's what I use.  It's lightly opinionated: using out-of-the-box Blazor/Razor/DotNetCore systems and toolkits whereever possible.  The CSS framework is a lightly customized version of BootStrap. 
  
-There are 5 articles describing various aspects of the framework and coding patterns used:
+There are five articles describing various aspects of the framework and coding patterns used:
 
 1. Project Structure and Framework - a bit of an introduction.
 2. Services - Building CRUD Data Layers.
@@ -51,36 +51,49 @@ The high level application design looks like this:
 
 This may look too complex for a simple application, we can just grab the data from the datasource in the display page.  Up to you, but you (or someone else who has to maintain the code) will almost certainly regret that decision at some point.
 
-*UI* and *Data Interface* are pretty self explanatory, but what exactly is the *Core Application*.  It's all the code that makes your application unique.  It's the business logic that processes the raw data from the data store and the logic that takes user input are stores sensible data from it.  The point to make is you should de-couple all this code from the data source and the UI.  Get it right and you can change the data store or the front end with little or no impact on the core application.
+*UI* and *Data* Domains are pretty self explanatory, but what exactly is the *Core Domain*.  It's all the code that makes your application unique.  It's the business logic that processes the raw data from the data store and the logic that takes user input are stores sensible data from it.  The point is you should de-couple all this code from the data source and the UI.  Get it right and you can change the data store or the front end with little or no impact on the core application.
 
 ## Solution Structure
 
-The application is configured to build and deploy both Server and WASM versions of the SPA, and host both on the same web site.  The base solution architecture is:
+The application is configured to build and deploy both Server and WASM versions of the SPA, and host both on the same web site.  The solution is split into a number of projects based on:
 
-1. Core Razor Library - contains the code that can be deployed to any application.  These could be built and deployed as a Nuget Package.
-2. Web Assembly Razor Library - contains the application specific code for the SPA along with the Web Assembly specific code.
-3. ASPNetCore Razor Web Project.  The host project that contains the startup pages for the WASM and Server SPAs, the services for the Blazor Server Hub and the server-side API Controllers for the WASM SPA.
+1. Split between generic library code that can be across multiple solutions.
+2. Split to ensure separation of concerns.  The core application code in *Blazr.Database.Core* only has a dependancy on the *Blazr.SPA* library.
+3. Split because of incompatibles bewteen project types.  A WASM project can't depend or be compiled with a *Microsoft.ASPNetCore.App* framework project.  API controllers need to be compiled within the *Microsoft.ASPNetCore.App* framework.
 
-I use Visual Studio, so the Github repository consists of a solution with five projects.  These are:
+The result are a set of projects as follows:
 
-1. Blazor.SPA - the core library containing everything that can be boilerplated and reused across any project.
-2. Blazor.Database - this is the WASM/Server library shared by the other projests.  Almost all the project code lives here.  Examples are the EF DB Context, Model classes, model specific CRUD components, Bootstrap SCSS, Views, Forms, ...
-3. Blazor.Database.Web - The host ASPNetCore server.
+1. *Razr.SPA* - core multi application re-usable code.
+2. *Razr.UIComponents* - core multi application re-usable UI components.
+3. *Razr.Database.Core* - Core Domain code specific to the application.
+4. *Razr.Database.Data* - Data Domain code specific to the application.
+5. *Razr.Database.UI* - UI Domain -  components/forms/pages - specific to the application.
+6. *Razr.Database.Controllers* - API controllers specific to the application.
+7. *Razr.Database* - Blazor project to buid the WASM application code.
+8. *Razr.Database.Web* - web server applicaton.
 
-You may have noticed at this point that there's no Server project.  You don't need one.
+![Project Dependancies](/siteimages/articles/database/project-dependencies.png)
 
-### The Data Box
+There are also testing projects currently being developed.
+ 
+You may have noticed at this point that there's no Blazor Server project.  You don't need one.
 
-The data box is designed to:
+## Libraries
 
-1. Standardise the interfaces between the application data box and the underlying data storage, 
-2. Standardise the interfaces between the application data box and the application core application.
-3. Make the data box components testable.
-4. Use naming conventions to provide abstraction.  Model classes have the same names as EF `DbSets`.
+There are two resource libraries - *Razor.SPA* and *Razor.UIComponents*.
 
-![Data Pipeline](/siteimages/articles/database/data-pipeline.png)
+*Razor.SPA* has four namespaces:
 
-#### Data Classes
+1. *Razor.SPA.Data* for all Data Domain code.
+2. *Razor.SPA.Core* for all Core Domain code.
+3. *Razor.SPA.Components* for all UI Domain code.
+4. *Razor.SPA* for any code not in these categories.
+
+All the code in *Razor.UIComponents* is in the UI Domain.
+
+## Data Classes
+
+All the data classes reside in the Core Domain and are thus in the Core project. The database/datasets are specific to the project so the Data Interface and the Core Application datasets match.  In other projects you may need a set Data Domain datasets and a mapping processes to build the Core Domain data classes.
 
 Data is divided into three object types:
 
@@ -90,49 +103,95 @@ Data is divided into three object types:
 
 3. **Edit Model Classes** - these are editable versions of model records.  They contain logic to track, validate and build saveable model records.  All edit classes implement `IEditRecord`, and optionally `IValidation` interfaces
 
-The data storage for the application is a SQL database accessed through Entity Framework.  The connection string defined in `AppSettings`.  The database is accessed through a `DbContext` class `LocalWeatherDbContext`.  The `DbContext` services are created through a DBContextFactory implemented through the `AddDBContextFactory` service extension.  The application accesses the database using the `IDbContextFactory<TDbContext>` interface.
+### The Data Access and Core Projects
+
+The design:
+
+1. Standardises the interfaces between the Data Domain and the underlying data storage, 
+2. Standardises the interfaces between the Data Domain and the Core Domain.
+3. Make the domains testable.
+4. Use naming conventions to provide abstraction.  Model classes have the same names as `DbSets` or `DataSets`.
+
+![Data Pipeline](/siteimages/articles/database/data-pipeline.png)
+
+#### Data Stores
+
+There are three data stores the application can use.
+
+1. MS SQL database accessed through Entity Framework.  The connection string defined in `AppSettings`.  The database is accessed through a `DbContext` class `MSSQLWeatherDbContext`.  The `DbContext` services are created through a DBContextFactory implemented through the `AddDBContextFactory` service extension.  The application accesses the database using the `IDbContextFactory<TDbContext>` interface.
+
+2. SQLite in-memory database accessed through Entity Framework.  The connection string defined in `AppSettings`.  The database is accessed through a `DbContext` class `SQLiteWeatherDbContext`.  There is a single DbContext, which can cause issues.  This datastore is only for unit testing.
+   
+3. Custom In-Memory Data Store.  This is a lightweight SQL style data store.  It's accessed through the `InMemoryWeatherDataStore` service.
 
 #### Brokers
 
-*Brokers* provide the application interface into the data box .  The *DataBroker* is responsible for standard CRUDL - Create/Read/Update/Delete/List - actions against database entities.
+*Brokers* provide the application interface for the data stores.  They reside in the Data Domain, but the IDataBroker interface definition is in the Core Domain.  The *DataBroker* is responsible for standard CRUDL - Create/Read/Update/Delete/List - actions against database entities.
 
-`IDataBroker` defines the common interface, implementing CRUDL in Database language terminology.  Method names reflect the terminology used in the underlying data storage - Select, Update, Insert,...
+The following brokers are defined in *Blazr.SPA*, implementing a set of generics based boilerplate code.
 
-`BaseDataBroker` provides an abstract base implementation of the interface.
+`IDataBroker` defines the common interface, implementing CRUDL in Database language terminology.  Method names reflect the terminology used in the underlying data storage - Select, Update, Insert,...  *Blazr.SPA*  
 
-`ServerDataBroker` interfaces with the SQL EF database context used by Blazor Server and the API controller.  `APIDataBroker` provides the API based data broker for Blazor WebAssembly.
+`BaseDataBroker` provides an abstract base implementation of the interface. *Blazr.SPA*
 
-These brokers implement generics where `TRecord` is the model class that represents the EF `DbSet`.  The methods use `GetDbSet`, a  `DbContext` extension method, to return the `DbSet` object for the model class.
+`SQLServerDataBroker` interfaces with the SQL EF database context used by Blazor Server and the API controller.  
 
-To demonstrate the level of abstraction and boilerplating achieved in the generic library services, the declaration of the Local Database Broker for the application is:
+`SQLiteServerDataBroker` interfaces with the SQLite EF database context used by Blazor Server and the API controller.  
+
+`InMemoryDataStoreBroker` interfaces with the in memory data store context used by Blazor Server and the API controller.
+
+`APIDataBroker` provides the API based data broker for Blazor WebAssembly.
+
+These brokers implement generics using `TRecord` to represent the record class.  The EF methods use `GetDbSet`, a  `DbContext` extension method, to return the `DbSet` object for `TRecord`.  The datastore has a similar function to get the `DataSet` for the `TRecord`.
+
+The Core Domain defines three data Brokers:
+
+1. `WeatherMSSQLDataBroker`
+2. `WeatherSQLiteDataBroker`
+3. `WeatherInMemoryDataBroker`
+
+The `WeatherSQLDataBroker` implemented in *Blazr.Database.Data* looks like this, and demonstrates the level of abstraction and boilerplating achieved:
 
 ```csharp
 public class WeatherSQLDataBroker :
-    ServerDataBroker<LocalWeatherDbContext>
+    ServerDataBroker<MSSQLWeatherDbContext>
 {
-    public WeatherSQLDataBroker(IConfiguration configuration, IDbContextFactory<LocalWeatherDbContext> dbContext) : base(configuration, dbContext) { }
+    public WeatherSQLDataBroker(IConfiguration configuration, IDbContextFactory<MSSQLWeatherDbContext> dbContext) : base(configuration, dbContext) { }
 }
 ```
 
 #### Connectors
 
-Connectors provide the data interfaces between the core application and brokers.
+Connectors provide the data interface between the Core Domain and Data Brokers in the Data Domain.
 
 `IDataServiceConnector` defines the common interface, implmementing CRUDL in more normal programming terminology - get, save, update, ...
 
-`ModelDataServiceConnector` implements the interface using generics to provide a abstract connector to any model/DbSet implementated by EF.
+`ModelDataServiceConnector` implements the interface using generics to provide a abstract connector to any data source.
+
+These classes/intefaces are generic and defined in *Blazr.SPA*.
+
+A single application specific Connector, `WeatherDataServiceConnector`, is declared in the application Core Domain.
+
+```csharp
+public class WeatherDataServiceConnector : ModelDataServiceConnector
+{
+    public WeatherDataServiceConnector(IDataBroker dataBroker, ILoggingBroker loggingBroker) : base(dataBroker, loggingBroker) { }
+}
+```
 
 #### ViewServices
 
-View Services provide the connection between the UI and the core application.  They contain all the business and UI logic.  There are three types:
+View Services provide the connection between the UI and the application data store.  They reside in the Core Domain and contain all the business and UI logic.  There are three types:
 
 1. ModelViewServices - these expose single base model data to the UI.
 2. CompoundModelServics - these expose complex models built from base models.  An example would be a weather station and its associated daily weather station data.
 3. EditModelServices - these transform record data into editable model classes and expose and manage the edit process.
 
-In the library `IModelViewService` defines the interface for standard model view services with `BaseModelViewService` defining an abstract implementation.
+In the *Razr.SPA* Library:
+1. `IModelViewService` defines the interface for standard model view services
+2. `BaseModelViewService` defining an abstract implementation.
 
-In the solution `WeatherForecastViewService` looks like this.
+In the application `WeatherForecastViewService` contains the data required by the UI to List/View/Edit the weather data.
 
 ```csharp
 public class WeatherForecastViewService : 
@@ -143,11 +202,11 @@ public class WeatherForecastViewService :
 }
 ```
 
-## UI Structure
+## UI Domain
 
 The UI is structured to use re-usable components built in Razor/Html markup across an application, with the majority of the code in the base library.
 
-*Page* is is very misused term in SPAs: frameworks could and should have introduced some new terminology.  I only use the *Pages* directory for real web pages, and *Page* to describe a web page served by a web server.  SPAs aren't web sites.  Programmers need step outside the web page paradigm to understand how they work.  The Blazor UI is component based; to think of it containing *Pages* perpetuates the paradigm, and a lot of misconceptions.  The only web page in a SPA is the launch page.  Once the SPA launches, the application changes out components to transition between Views.  I've built an SPA with no router or Urls in sight - just like a desktop application.
+*Page* is a much misused term in SPAs: frameworks could and should have introduced some new terminology.  I only use the *Pages* directory for real web pages, and *Page* to describe a web page served by a web server.  SPAs aren't web sites.  Programmers need to step outside the web page paradigm to understand how they work.  The Blazor UI is component based; to think of it containing *Pages* perpetuates the paradigm, and with it a lot of misconceptions.  The only web page in a SPA is the launch page.  Once the SPA launches, the application changes out components to transition between Views.  I've built an SPA with no router or Urls in sight - just like a desktop application.
 
 I use the following terminology thoughout these articles:
 1. Page - the launch web page on the web site.  The only page in an SPA.
@@ -168,7 +227,7 @@ RouteViews are the components loaded into the root `App` component, normally by 
 1. It must be declared as a razor component or class implementing `IComponent`.
 2. It must declare one or more routes either through the `@page` directive or as a `RouteAttribute`.
 
-The `FetchData` view is declared as shown below.  The Razor makrup is mimimal, just the `WeatherForecastListForm`.  The code handles what happens on various actions in the List Form.  
+The `FetchData` view is declared as shown below.  The Razor markup is mimimal, just the `WeatherForecastListForm`.  The code handles what happens on various actions in the List Form.  
 
 ```csharp
 @page "/fetchdata"
@@ -211,7 +270,9 @@ The purpose of the RouteView is to declare routes that the `Router` component ca
 </Router>
 ```
 
-Note that the display component is called `RouteView` which it where RouteViews comes from.
+The display component is called `RouteView` which it where my nomenclature comes from.
+
+**Note** - In the application we will be replacing `RouteView` with a new `RouteViewManager`.
 
 ### Layouts
 
@@ -219,8 +280,25 @@ Layouts are out-of-the-box Blazor Layouts.  The Router renders the Layout with t
 
 ### Forms
 
-A form is a mid level unit in the component hierarchy.  RouteViews contain one or more forms.
-. Forms are logical collections of controls that are either displayed in a view or a modal dialog.  Lists, view forms, edit forms are all classic forms. Forms contain controls not Html.
+A form is a mid level unit in the component hierarchy.  RouteViews contain one or more forms.  You can see multiple forms declared in the `FetchdataInline` routeview.
+
+```csharp
+@page "/fetchdataInline"
+
+@namespace Blazr.Database.RouteViews
+@inherits InlineFormBase
+
+<UIComponent Show="this.ShowEditor">
+    <WeatherForecastEditorForm ID="this.editorId" ExitAction="this.CloseDialog"></WeatherForecastEditorForm>
+</UIComponent>
+<UIComponent Show="this.ShowViewer">
+    <WeatherForecastViewerForm ID="this.viewerId" ExitAction="this.CloseDialog"></WeatherForecastViewerForm>
+</UIComponent>
+
+<WeatherForecastListForm EditRecord="this.GoToEditor" ViewRecord="this.GoToViewer" NewRecord="this.GoToNew" ExitAction="Exit"></WeatherForecastListForm>
+```
+
+Forms are logical collections of controls that are either displayed in a view or a modal dialog.  Lists, view forms, edit forms are all classic forms. Forms contain controls not Html.
 
 ### Controls
 

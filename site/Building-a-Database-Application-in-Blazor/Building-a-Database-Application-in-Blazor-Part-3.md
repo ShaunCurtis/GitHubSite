@@ -22,7 +22,7 @@ This article looks in detail at building reusable CRUD presentation layer compon
 
 I find it interesting that most programmers try and automate Edit And View forms by building a control factory rather than boilerplating everything else. Most forms are unique to their record set.  Certain fields can be grouped together and put on the same line.  Text fields change in length depending on how many characters they need.  Building a factory to handle this, plus the added complication of linkages between the control, the dataclass instance and validation, doesn't seem worth it.  The configuration dataset becomes more complicated than the form it's trying to mimic.  For those reasons there's no form factory here, just a set of libary UI component classes to standardise form building.
 
-## Sample Project, Code and 
+## Sample Project, Code and Demo Site
 
 The repository for the articles has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
 
