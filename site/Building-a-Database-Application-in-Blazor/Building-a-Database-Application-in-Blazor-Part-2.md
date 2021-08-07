@@ -1206,10 +1206,10 @@ public class WeatherForecastViewService :
 This article shows how the data services can be built using a set of abstract classes implementing boilerplate code for CRUDL operations.  I've purposely kept error checking in the code to a minimum, to make it much more readable.  You can implement as little or as much as you like.
 
 Some key points to note:
-1. Aysnc code is used wherever possible.  The data access functions are all async.  ValueTasks are used where possible.
+1. Aysnc code is used throughout the projects.  The data access is all async.  ValueTasks are used where possible.
 2. Generics make much of the boilerplating possible.  They create complexity, but are worth the effort.
 3. Interfaces are crucial for Dependancy Injection and UI boilerplating.  All connections between the Data and  Core Domain and the UI and Core Domain should be implemented as interfaces.  An interface with a single implementation is good.  The payback comes in maintainability and future updates.
-4. The *Blazr.SPA* library is spilt into three namespaces to reflect the domain model.  *Blazor.Database.Core* should only depend on *Blazr.SPA.Core*.
+4. The *Blazr.SPA* library has three namespaces to reflect the domain model.  *Blazor.Database.Core* should only depend on *Blazr.SPA.Core*.
 
 If you're reading this article in the future, check the readme in the repository for the latest version of this article set.
 

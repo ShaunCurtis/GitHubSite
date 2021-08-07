@@ -9,11 +9,11 @@ published: 2021-08-02
 
 You've edited data in a form.  You click on a link in the navigation bar, click the back button, hit a favourite link.  Do you really want to exit the form ? Maybe, maybe not.  What you probably want is to be at least warned if you have unsaved data in the form you are exiting.
 
-![Dirty Editor](https://shauncurtis.github.io/siteimages/Articles/Edit-Forms/Dirty-Exit.png)
+![Dirty Editor](/siteimages/Articles/Edit-Forms/Dirty-Exit.png)
 
-This Repo shows how to implement just that in Blazor.
+This code is part of a larger Blazor Database template project. The repository for the project is [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).
 
-There's currently a Azure Site that demos the code - [Blazor-EditForms](https://blazor-editforms.azurewebsites.net/)
+The demo site is here - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-server.azurewebsites.net/).
 
 ## Form Exits
 
@@ -39,36 +39,42 @@ This is implemented as two classes.
 ```csharp
 public class EditStateService
 {
+    private bool _isDirty;
     public object RecordID { get; set; }
-    public bool IsDirty { get; set; }
+    public bool IsDirty => _isDirty && !string.IsNullOrWhiteSpace(this.Data) && !string.IsNullOrWhiteSpace(this.Data) && this.RecordID != null;
     public string Data { get; set; }
     public string EditFormUrl { get; set; }
     public bool ShowEditForm => (!String.IsNullOrWhiteSpace(EditFormUrl)) && IsDirty;
     public bool DoFormReload { get; set; }
+
     public event EventHandler RecordSaved;
+    public event EventHandler<EditStateEventArgs> EditStateChanged;
 
     public void SetEditState(string data)
     {
         this.Data = data;
-        this.IsDirty = true;
+        this._isDirty = true;
     }
 
     public void ClearEditState()
     {
         this.Data = null;
-        this.IsDirty = false;
+        this._isDirty = false;
     }
 
     public void ResetEditState()
     {
         this.RecordID = null;
         this.Data = null;
-        this.IsDirty = false;
+        this._isDirty = false;
         this.EditFormUrl = string.Empty;
     }
 
     public void NotifyRecordSaved()
         => RecordSaved?.Invoke(this, EventArgs.Empty);
+
+    public void NotifyEditStateChanged(bool dirtyState)
+        => EditStateChanged?.Invoke(this, EditStateEventArgs.NewArgs(dirtyState));
 }
 ```
 
@@ -140,7 +146,6 @@ private bool disposedValue;
 private EditFieldCollection EditFields = new EditFieldCollection();
 
 [CascadingParameter] public EditContext EditContext { get; set; }
-[Parameter] public EventCallback<bool> EditStateChanged { get; set; }
 
 [Inject] private EditStateService EditStateService { get; set; }
 [Inject] private IJSRuntime _js { get; set; }
@@ -282,7 +287,8 @@ private void SetPageExitCheck(bool action)
 
 ```
 
-`OnSave`  clears the current edit state and reloads `EditFields` from the update `model`.
+1. `OnSave` clears the current edit state and reloads `EditFields` from the update `model`.
+2. `NotifyEditStateChanged` notifies `EditStateService` that the edit state has changed.  This raises the `EditStateChanged` event.
 
 ```csharp
 private void OnSave(object sender, EventArgs e)
@@ -290,6 +296,13 @@ private void OnSave(object sender, EventArgs e)
     this.ClearEditState();
     this.LoadEditState();
 }
+
+private void NotifyEditStateChanged()
+{
+    var isDirty = EditFields?.IsDirty ?? false;
+    this.EditStateService.NotifyEditStateChanged(isDirty);
+}
+
 ```
 
 ### Extra Site Navigation
@@ -356,539 +369,213 @@ private void Exit()
 
 Intra site navigation is handled by the `Router` defined in `App`.  The actual rendering is handled by `RouteView`.  This is a simpler component to modify than the router.  Our revised process for `RouteView` looks like this:
 
-![RouteViewManager](./images/RouteViewManager.png)
+![RouteViewManager](/siteimages/Articles/edit-forms/RouteViewManager.png)
 
 ### RouteViewManager
 
-`RouteViewManager` is based on `RouteView`.
+`RouteViewManager` is based on `RouteView`.  It contains code for handling View Management which isn't shown here.
 
 The key sections for loading are:
 
 ```csharp
-public class RouteViewManager : IComponent
-{
-    private bool _RenderEventQueued;
-    private RenderHandle _renderHandle;
-
-    [Parameter] public RouteData RouteData { get; set; }
-    [Parameter] public Type DefaultLayout { get; set; }
-    [Inject] private EditStateService EditStateService { get; set; }
-    [Inject] private IJSRuntime _js { get; set; }
-    [Inject] private NavigationManager NavManager { get; set; }
-
-    public void Attach(RenderHandle renderHandle)
-        => _renderHandle = renderHandle;
-
-    public async Task SetParametersAsync(ParameterView parameters)
+    public class RouteViewManager : IComponent
     {
-        // Sets the component parameters
-        parameters.SetParameterProperties(this);
+        private bool _RenderEventQueued;
+        private RenderHandle _renderHandle;
 
-        if (RouteData is null && string.IsNullOrWhiteSpace(this.EditStateService.EditFormUrl))
-            throw new InvalidOperationException($"The {nameof(RouteView)} component requires a non-null value for the parameter {nameof(RouteData)}.");
-        // Render the component
-        await this.RenderAsync();
-    }
+        [Inject] private EditStateService EditStateService { get; set; }
+        [Inject] private IJSRuntime _js { get; set; }
+        [Inject] private NavigationManager NavManager { get; set; }
+        [Inject] private RouteViewService RouteViewService { get; set; }
 
-    private RenderFragment _renderDelegate => builder =>
-    {
-        _RenderEventQueued = false;
-        // Adds cascadingvalue for the ViewManager
-        builder.OpenComponent<CascadingValue<RouteViewManager>>(0);
-        builder.AddAttribute(1, "Value", this);
-        // Get the layout render fragment
-        builder.AddAttribute(2, "ChildContent", this._layoutViewFragment);
-        builder.CloseComponent();
-    };
+        [Parameter] public RouteData RouteData { get; set; }
 
-    public async Task RenderAsync() => await InvokeAsync(() =>
-    {
-        if (!this._RenderEventQueued)
+        [Parameter] public Type DefaultLayout { get; set; }
+
+        //... RouteView Code
+
+        public void Attach(RenderHandle renderHandle)
+            => _renderHandle = renderHandle;
+
+        public async Task SetParametersAsync(ParameterView parameters)
         {
-            this._RenderEventQueued = true;
-            _renderHandle.Render(_renderDelegate);
-        }
-    }
-    );
+            // Sets the component parameters
+            parameters.SetParameterProperties(this);
 
-    protected Task InvokeAsync(Action workItem) 
-        => _renderHandle.Dispatcher.InvokeAsync(workItem);
-
-    protected Task InvokeAsync(Func<Task> workItem) 
-        => _renderHandle.Dispatcher.InvokeAsync(workItem);
-}
-```
-
-The component has two button event handlers to handle the two Dirty Form options and a method to set the browser page exit event.
-
-```csharp
-private Task DirtyExit(MouseEventArgs e)
-{
-    this.EditStateService.ClearEditState();
-    this.SetPageExitCheck(false);
-    return RenderAsync();
-}
-
-private void LoadDirtyForm(MouseEventArgs e)
-{
-    this.EditStateService.DoFormReload = true;
-    NavManager.NavigateTo(this.EditStateService.EditFormUrl);
-}
-
-private void SetPageExitCheck(bool action)
-    => _js.InvokeAsync<bool>("cecblazor_setEditorExitCheck", action);
-    }
-```
-
-A render fragment to build out the layout which adds either `_dirtyExitFragment` to build the Dirty Exit view or `_renderComponentWithParameters` to build out the route component. 
-
-```csharp
-private RenderFragment _layoutViewFragment => builder =>
-{
-    Type _pageLayoutType = RouteData?.PageType.GetCustomAttribute<LayoutAttribute>()?.LayoutType
-        ?? DefaultLayout;
-
-    builder.OpenComponent<LayoutView>(0);
-    builder.AddAttribute(1, nameof(LayoutView.Layout), _pageLayoutType);
-    if (this.EditStateService.IsDirty && this.EditStateService.DoFormReload is not true)
-        builder.AddAttribute(2, nameof(LayoutView.ChildContent), _dirtyExitFragment);
-    else
-    {
-        this.EditStateService.DoFormReload = false;
-        builder.AddAttribute(3, nameof(LayoutView.ChildContent), _renderComponentWithParameters);
-    }
-    builder.CloseComponent();
-};
-
-private RenderFragment _dirtyExitFragment => builder =>
-{
-    builder.OpenElement(0, "div");
-    builder.AddAttribute(1, "class", "dirty-exit");
-    {
-        builder.OpenElement(2, "div");
-        builder.AddAttribute(3, "class", "dirty-exit-message");
-        builder.AddContent(4, "You are existing a form with unsaved data");
-        builder.CloseElement();
-    }
-    {
-        builder.OpenElement(5, "div");
-        builder.AddAttribute(6, "class", "dirty-exit-message");
-        {
-            builder.OpenElement(7, "button");
-            builder.AddAttribute(8, "class", "dirty-exit-button");
-            builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, this.DirtyExit));
-            builder.AddContent(10, "Exit and Clear Unsaved Data");
-            builder.CloseElement();
-        }
-        {
-            builder.OpenElement(11, "button");
-            builder.AddAttribute(12, "class", "load-dirty-form-button");
-            builder.AddAttribute(13, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, this.LoadDirtyForm));
-            builder.AddContent(14, "Reload Form");
-            builder.CloseElement();
-        }
-        builder.CloseElement();
-    }
-    builder.CloseElement();
-};
-
-private RenderFragment _renderComponentWithParameters => builder =>
-{
-    Type componentType = null;
-    IReadOnlyDictionary<string, object> parameters = new Dictionary<string, object>();
-
-    componentType = RouteData.PageType;
-    parameters = RouteData.RouteValues;
-    if (componentType != null)
-    {
-        builder.OpenComponent(0, componentType);
-        foreach (var kvp in parameters)
-        {
-            builder.AddAttribute(1, kvp.Key, kvp.Value);
-        }
-        builder.CloseComponent();
-    }
-    else
-    {
-        builder.OpenElement(2, "div");
-        builder.AddContent(3, "No Route or View Configured to Display");
-        builder.CloseElement();
-    }
-};
-```
-
-## Updating the Data Model
-
-The data model needs some changes to make to make this work correctly and add some structure to the data layers.
-
-### WeatherForecast
-
-`WeatherForecast` has a `Copy` method to create a copy of the instance.
-
-```csharp
-public class WeatherForecast
-{
-    public Guid ID { get; set; }
-    public DateTime Date { get; set; }
-    public int TemperatureC { get; set; }
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-    public string Summary { get; set; }
-
-    public WeatherForecast Copy()
-        => new()
-        {
-            ID = this.ID,
-            Date = this.Date,
-            TemperatureC = this.TemperatureC,
-            Summary = this.Summary
-        };
-}
-```
-
-### WeatherForecastDataService
-
-The data service.  It builds a list of Weather Forecasts and adds data access methods to get a list, an individual record and update a record.  Note the service preserves the original data using `Copy` to create copies to pass to the View Service.
-
-```csharp
-public class WeatherForecastDataService
-{
-    private static readonly string[] Summaries = new[]
-    {
-        "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-    };
-
-    private List<WeatherForecast> WeatherForecasts; 
-
-    public WeatherForecastDataService()
-        =>  WeatherForecasts = GetForecasts();
-
-    public ValueTask<List<WeatherForecast>> GetWeatherForcastsAsync()
-    {
-        var list = new List<WeatherForecast>();
-        WeatherForecasts.ForEach(item => list.Add(item.Copy()));
-        return ValueTask.FromResult<List<WeatherForecast>>(list);
-    }
-
-    public ValueTask<WeatherForecast> GetWeatherForcastAsync(Guid id)
-    { 
-        var record =  WeatherForecasts.FirstOrDefault(item => item.ID == id);
-        return ValueTask.FromResult<WeatherForecast>(record.Copy());
-    }
-
-    public ValueTask<bool> SaveWeatherForcastAsync(WeatherForecast record)
-    {
-        var rec = WeatherForecasts.FirstOrDefault(item => item.ID == record.ID);
-        if (rec != default)
-        {
-            rec.Date = record.Date;
-            rec.TemperatureC = record.TemperatureC;
-            rec.Summary = record.Summary;
-        }
-        return ValueTask.FromResult<bool>(rec != default);
-    }
-
-    private List<WeatherForecast> GetForecasts()
-    {
-        var rng = new Random();
-        return Enumerable.Range(1, 5).Select(index => new WeatherForecast
-        {
-            ID = Guid.NewGuid(),
-            Date = DateTime.Now.AddDays(index),
-            TemperatureC = rng.Next(-20, 55),
-            Summary = Summaries[rng.Next(Summaries.Length)]
-        }).ToList();
-    }
-}
-```
-
-### WeatherForecastViewService
-
-The view service.  It holds the retrieved data with events for data changes.
-
-```csharp
-public class WeatherForecastViewService
-{
-    private List<WeatherForecast> _records;
-    private WeatherForecast _record;
-
-    public List<WeatherForecast> Records
-    {
-        get => this._records;
-        private set
-        {
-            this._records = value;
-            ListChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public WeatherForecast Record
-    {
-        get => _record;
-        set
-        {
-            this._record = value;
-            RecordChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    private WeatherForecastDataService DataService;
-    public event EventHandler RecordChanged;
-    public event EventHandler ListChanged;
-
-    public WeatherForecastViewService(WeatherForecastDataService dataService)
-        => this.DataService = dataService;
-
-    public async ValueTask GetWeatherForcastsAsync()
-        => this.Records = await DataService.GetWeatherForcastsAsync();
-
-    public async ValueTask<bool> UpdateRecordAsync()
-        =>  await DataService.SaveWeatherForcastAsync(this.Record);
-
-    public async ValueTask GetRecordAsync(Guid id)
-        => this.Record = await DataService.GetWeatherForcastAsync(id);
-}
-```
-
-### ServiceCollectionExtensions
-
-Adds an extension method for the *Blazor.EditForms* library services.
-
-```csharp
-public static class ServiceCollectionExtensions
-{
-    public static IServiceCollection AddBlazorForms(this IServiceCollection services)
-    {
-        services.AddScoped<EditStateService>();
-        return services;
-    }
-}
-```
-
-### Blazor.EditForms.Web Startup
-
-Add the services to the web project for Blazor Forms and the Weather Services.
-
-```csharp
-public void ConfigureServices(IServiceCollection services)
-{
-    services.AddRazorPages();
-    services.AddServerSideBlazor();
-    services.AddSingleton<WeatherForecastDataService>();
-    services.AddScoped<WeatherForecastViewService>();
-    services.AddBlazorForms();
-}
-```
-## Updating the Forms
-
-### FetchData
-
-`FetchData` has changes to handle the new View Service and editing.  
-
-```csharp
-page "/fetchdata"
-@implements IDisposable
-
-@using Blazor.EditForms.Web.Data
-
-<h1>Weather forecast</h1>
-
-<p>This component demonstrates fetching data from a service.</p>
-
-@if (this.ViewService.Records == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Temp. (C)</th>
-                <th>Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in this.ViewService.Records)
+            // Check if we have either RouteData or ViewData
+            if (RouteData == null)
             {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                    <td>
-                        <button class="btn btn-primary" @onclick="() => EditRecord(forecast.ID)">Edit</button>
-                    </td>
-                </tr>
+                throw new InvalidOperationException($"The {nameof(RouteView)} component requires a non-null value for the parameter {nameof(RouteData)}.");
             }
-        </tbody>
-    </table>
-}
+            // we've routed and need to clear the ViewData
+            this._ViewData = null;
+            // Render the component
+            await this.RenderAsync();
+        }
 
-@code {
-    private List<WeatherForecast> forecasts;
-    [Inject] private WeatherForecastViewService ViewService { get; set; }
-    [Inject] private NavigationManager NavManager { get; set; }
+        //...  Load Route View Code
 
-    protected override async Task OnInitializedAsync()
-    {
-        await this.ViewService.GetWeatherForcastsAsync();
-        this.ViewService.ListChanged += this.OnListUpdated;
+        private RenderFragment _renderDelegate => builder =>
+        {
+            _RenderEventQueued = false;
+            // Adds cascadingvalue for the ViewManager
+            builder.OpenComponent<CascadingValue<RouteViewManager>>(0);
+            builder.AddAttribute(1, "Value", this);
+            // Get the layout render fragment
+            builder.AddAttribute(2, "ChildContent", this._layoutViewFragment);
+            builder.CloseComponent();
+        };
+
+        private RenderFragment _layoutViewFragment => builder =>
+        {
+            Type _pageLayoutType = RouteData?.PageType.GetCustomAttribute<LayoutAttribute>()?.LayoutType
+                ?? RouteViewService.Layout
+                ?? DefaultLayout;
+
+            builder.OpenComponent<LayoutView>(0);
+            builder.AddAttribute(1, nameof(LayoutView.Layout), _pageLayoutType);
+            if (this.EditStateService.IsDirty && this.EditStateService.DoFormReload is not true)
+                builder.AddAttribute(2, nameof(LayoutView.ChildContent), _dirtyExitFragment);
+            else
+            {
+                this.EditStateService.DoFormReload = false;
+                builder.AddAttribute(3, nameof(LayoutView.ChildContent), _renderComponentWithParameters);
+            }
+            builder.CloseComponent();
+        };
+
+        private RenderFragment _dirtyExitFragment => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "class", "dirty-exit");
+            {
+                builder.OpenElement(2, "div");
+                builder.AddAttribute(3, "class", "dirty-exit-message");
+                builder.AddContent(4, "You are existing a form with unsaved data");
+                builder.CloseElement();
+            }
+            {
+                builder.OpenElement(2, "div");
+                builder.AddAttribute(3, "class", "dirty-exit-message");
+                {
+                    builder.OpenElement(2, "button");
+                    builder.AddAttribute(3, "class", "dirty-exit-button");
+                    builder.AddAttribute(5, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, this.DirtyExit));
+                    builder.AddContent(6, "Exit and Clear Unsaved Data");
+                    builder.CloseElement();
+                }
+                {
+                    builder.OpenElement(2, "button");
+                    builder.AddAttribute(3, "class", "load-dirty-form-button");
+                    builder.AddAttribute(5, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, this.LoadDirtyForm));
+                    builder.AddContent(6, "Reload Form");
+                    builder.CloseElement();
+                }
+                builder.CloseElement();
+            }
+            builder.CloseElement();
+        };
+
+        private RenderFragment _renderComponentWithParameters => builder =>
+        {
+            Type componentType = null;
+            IReadOnlyDictionary<string, object> parameters = new Dictionary<string, object>();
+
+            if (_ViewData != null)
+            {
+                componentType = _ViewData.ViewType;
+                parameters = _ViewData.ViewParameters;
+            }
+            else if (RouteData != null)
+            {
+                componentType = RouteData.PageType;
+                parameters = RouteData.RouteValues;
+            }
+
+            if (componentType != null)
+            {
+                builder.OpenComponent(0, componentType);
+                foreach (var kvp in parameters)
+                {
+                    builder.AddAttribute(1, kvp.Key, kvp.Value);
+                }
+                builder.CloseComponent();
+            }
+            else
+            {
+                builder.OpenElement(0, "div");
+                builder.AddContent(1, "No Route or View Configured to Display");
+                builder.CloseElement();
+            }
+        };
+
+        public async Task RenderAsync() => await InvokeAsync(() =>
+        {
+            if (!this._RenderEventQueued)
+            {
+                this._RenderEventQueued = true;
+                _renderHandle.Render(_renderDelegate);
+            }
+        }
+        );
+
+        protected Task InvokeAsync(Action workItem) 
+            => _renderHandle.Dispatcher.InvokeAsync(workItem);
+
+        protected Task InvokeAsync(Func<Task> workItem) 
+            => _renderHandle.Dispatcher.InvokeAsync(workItem);
+
+        private Task DirtyExit(MouseEventArgs d)
+        {
+            this.EditStateService.ClearEditState();
+            this.SetPageExitCheck(false);
+            return RenderAsync();
+        }
+
+        private void LoadDirtyForm(MouseEventArgs e)
+        {
+            this.EditStateService.DoFormReload = true;
+            NavManager.NavigateTo(this.EditStateService.EditFormUrl);
+        }
+
+        private void SetPageExitCheck(bool action)
+            => _js.InvokeAsync<bool>("cecblazor_setEditorExitCheck", action);
     }
-
-    private void OnListUpdated(object sender, EventArgs e)
-        => this.InvokeAsync(StateHasChanged);
-
-    private void EditRecord(Guid id)
-        => this.NavManager.NavigateTo($"/WeatherEditor/{id}");
-
-    public void Dispose()
-        => this.ViewService.ListChanged -= this.OnListUpdated;
-}
 ```
 
-### Weather Editor
+The component has two button event handlers to handle the two Dirty Form options
+1. `DirtyExit`
+2. `LoadDirtyForm`
+   
+ and `SetPageExitCheck` to set the browser page exit event.
 
-Various UI components are used to make form building simpler.  They're not covered here.  You can explore them in the repository.
+The RenderFragement code builds out the layout which adds either `_dirtyExitFragment` to build the Dirty Exit view or `_renderComponentWithParameters` to build out the route/view component. 
 
-The Editor Razor code:
+## The Solution in Action
 
-```csharp
-@using Blazor.EditForms.Components
-@page "/WeatherEditor/{ID:guid}"
-
-<UILoader State="this.LoadState">
-    <FormViewTitle>
-        <h2>Weather Forecast Editor</h2>
-    </FormViewTitle>
-    <EditForm EditContext="this._editContent">
-        <EditFormState EditStateChanged="this.OnEditStateChanged"></EditFormState>
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12 col-md-6">
-                    <FormEditControl Label="Date" ShowLabel="true" @bind-Value="this.ViewService.Record.Date" ControlType="typeof(InputDate<DateTime>)" IsRequired="true" ShowValidation="true" HelperText="Enter the Forecast Date"></FormEditControl>
-                </div>
-                <div class="col-12 col-md-6">
-                    <FormEditControl Label="Temperature &deg;C" ShowLabel="true" @bind-Value="this.ViewService.Record.TemperatureC" ControlType="typeof(InputNumber<int>)" IsRequired="true" ShowValidation="true" HelperText="Enter the Temperature"></FormEditControl>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12">
-                    <FormEditControl Label="Summary" ShowLabel="true" @bind-Value="this.ViewService.Record.Summary" IsRequired="true" ShowValidation="true" HelperText="Summarise the Weather"></FormEditControl>
-                </div>
-            </div>
-        </div>
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-12 text-right">
-                    <UIButton class="btn-success" Disabled="!this.IsDirty" ClickEvent="this.SaveRecord">Save</UIButton>
-                    <UIButton class="btn-dark" Show="!this.IsDirty" ClickEvent="this.Exit">Exit</UIButton>
-                    <UIButton class="btn-danger" Show="this.IsDirty" ClickEvent="this.Exit">Exit Without Saving</UIButton>
-                </div>
-            </div>
-        </div>
-    </EditForm>
-</UILoader>
-```
-
-And the code behind.
-
-```csharp
-public partial class WeatherEditor : IDisposable
-{
-    private EditContext _editContent;
-    [Parameter]public Guid ID { get; set; }
-    [Inject] private WeatherForecastViewService ViewService { get; set; }
-    [Inject] private NavigationManager NavManager { get; set; }
-    [Inject] private EditStateService EditStateService { get; set; }
-    [Inject] private IJSRuntime _js { get; set; }
-    private bool IsDirty => this.EditStateService.IsDirty;
-    protected ComponentState LoadState { get; set; } = ComponentState.New;
-
-    protected async override Task OnInitializedAsync()
-    {
-        this.LoadState = ComponentState.Loading;
-        var id = Guid.Empty;
-        if (this.EditStateService.IsDirty)
-            id = (Guid)this.EditStateService.RecordID;
-        id = id != Guid.Empty ? id : this.ID;
-        await ViewService.GetRecordAsync(id);
-        _editContent = new EditContext(this.ViewService.Record);
-        this.EditStateService.EditFormUrl = NavManager.Uri;
-        this.EditStateService.RecordID = id;
-        this.ViewService.RecordChanged += this.OnRecordChanged;
-        this.LoadState = ComponentState.Loaded;
-    }
-
-    private void OnRecordChanged(object sender, EventArgs e)
-        =>  this.InvokeAsync(StateHasChanged);
-
-    private void OnEditStateChanged(bool change)
-        =>  this.InvokeAsync(StateHasChanged);
-
-    private async Task SaveRecord()
-    {
-        await this.ViewService.UpdateRecordAsync();
-        this.EditStateService.NotifyRecordSaved();
-    }
-
-    private void Exit()
-    {
-        this.EditStateService.ResetEditState();
-        this.SetPageExitCheck(false);
-        NavManager.NavigateTo("/fetchdata");
-    }
-
-    private void SetPageExitCheck(bool action)
-        => _js.InvokeAsync<bool>("cecblazor_setEditorExitCheck", action);
-
-    public void Dispose()
-        => this.ViewService.RecordChanged -= this.OnRecordChanged;
-}
-```
-
-### App.razor
-
-App is set to use the new `RouteViewManager` component.
-
-```csharp
-@using Blazor.SPA.Components
-
-<Router AppAssembly="@typeof(Program).Assembly" PreferExactMatches="@true">
-    <Found Context="routeData">
-        <RouteViewManager RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-    </Found>
-    <NotFound>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p>Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
-```
-## The Solution
+You can see the solution in action at [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-server.azurewebsites.net/).
 
 Run the solution go to **FetchData** and click on Edit a record.  You will see:
 
-![Clean Editor](./images/Clean-Editor.png)
+![Clean Editor](/siteimages/Articles/edit-forms/Clean-Editor.png)
 
-Save disabled, normal Exit and you can go where you want.
+Save/Update disabled, normal Exit and you can go where you want.
 
 Now Change the Temperature, and you will see:
 
-![Dirty Editor](./images/Dirty-Editor.png)
+![Dirty Editor](/siteimages/Articles/edit-forms/Dirty-Editor.png)
 
 Now Save is enabled and the Exit button has changed.
 
 Click on a menu link, or hit the browser back button:
 
-![Dirty Editor](./images/Dirty-Exit.png)
+![Dirty Editor](/siteimages/Articles/edit-forms/Dirty-Exit.png)
 
 You now get the Dirty Exit Challenge from `RouteViewManager`.  Check what happens on each action.
 
 Finally hit F5 to reload the page.
 
-![Dirty Editor](./images/Dirty-App-Exit.png)
+![Dirty Editor](/siteimages/Articles/edit-forms/Dirty-App-Exit.png)
 
 This time you get the browser challenge - the text depends on the specific browser - they all implement the challenge slightly differently.
 
