@@ -9,6 +9,10 @@ published: 2020-10-01
 # Building a Database Application in Blazor 
 # Part 1 - Project Structure and Framework
 
+::: danger
+This set of articles are currently being updated
+:::
+
 This set of articles describes a framework for building and structuring Database Applications in Blazor.
 
 It's just a framework.  I make no recommendations: use it or abuse it.  It's what I use.  It's lightly opinionated: using out-of-the-box Blazor/Razor/DotNetCore systems and toolkits whereever possible.  The CSS framework is a lightly customized version of BootStrap. 

@@ -8,6 +8,10 @@ published: 2020-10-03
 
 # Part 3 - View Components - CRUD Edit and View Operations in the UI
 
+::: danger
+This set of articles are currently being updated
+:::
+
 ## Introduction
 
 This is the third in a series of articles looking at how to build and structure a Database Application in Blazor. The articles so far are:
@@ -30,6 +34,19 @@ There's a SQL script in /SQL in the repository for building the database.  The a
 
 [You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
 
+The List Form
+![Weather Forecast Viewer](/siteimages/articles/database/fetchdata-list.png)
+
+The Modal Viewer
+![Weather Forecast Viewer](/siteimages/articles/database/WeatherForecast-Viewer.png)
+
+The Inline Editor
+![Weather Forecast Viewer](/siteimages/articles/database/WeatherForecast-Editor.png)
+
+Edit State Control
+![Weather Forecast Viewer](/siteimages/articles/database/Editor-dirty-exit.png)
+
+
 Several custom controls are used in the forms.  The detail on these is covered in separate articles:
 
 Code Project Articles:
@@ -40,11 +57,10 @@ Code Project Articles:
 
 This Repo Originals:
 
-- [EditFormState Control](/articles/editformstate.html)
+- [EditFormState](articles/Building-Edit-Forms.html)
 - [EditValidationState Control](/articles/validationformstate.html) 
 - [InlineDialog Control](/articles/inline-dialog.html)
 - [ModalDialog Control](/articles/bootstrap-modal-dialog.html)
-
 
 ## The Base Forms
 
@@ -478,7 +494,8 @@ The editor is exactly the same, but declares the form `WeatherForecastEditorForm
 }
 ```
 
-### Wrap Up
+## Wrap Up
+
 That wraps up this article.  We've shown how to build boilerplate code into base forms and how to implement viewer and editor forms.  We'll look in more detail at the list forms and how the viewer and editors are called in a separate article.   
 Some key points to note:
 1. The Blazor Server and Blazor WASM code is the same.
