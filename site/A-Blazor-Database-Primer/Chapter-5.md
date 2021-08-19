@@ -23,9 +23,15 @@ Clear both projects down to only *program.cs*.
 
 ## BlazorDB.Controllers
 
+This project is where we code the API controllers.  It should be a `Microsoft.NET.Sdk.Web` to give us the right framework to implement controllers. The WASM SPA calls the API controller for its data.
+
+We implement a single `WeatherForecastController` with a single route.
+
 ### Controllers
 
 Add a *Controller* folder to *BlazorDB.Controllers* and a `WeatherForecastController` class.
+
+The controller gets passes the Services Container registered `IDataBroker` on instanciation.  We'll see how we map this controller to the actual site shortly.
 
 ```csharp
 using BlazorDB.Core;
@@ -56,7 +62,7 @@ namespace BlazorDB.Controllers
 
 ### Program.cs
 
-As a web project the project must have a `Main`, so we give it an empty `Main`.
+A web project must have a `Main`, so we give it an empty one..
 
 ```csharp
 namespace BlazorDB.Controllers
@@ -89,7 +95,7 @@ The project file should look like this:
 
 ## BlazorDB.WASM
 
-The purpose of this project is to build the WASM code and associated configuration and JS files.
+This project builds the WASM code and associated configuration and JS files.
 
 ### Program.cs
 
@@ -119,9 +125,9 @@ namespace BlazorDB.WASM
 }
 ```
 
-1. We set the root component to `BlazorDB.UI.App`.  This is the same `App` as used by the Server project'
-2. We add the services defined in the *BlazorDB* `ServiceCollectionExtensions`.
-3. We add a `HttpClient` service to make API calls.
+1. Sets the root component to `BlazorDB.UI.App` - the same `App` as used by the Server project.
+2. Adds the services defined in the *BlazorDB* `ServiceCollectionExtensions`.
+3. Adds a `HttpClient` service to make API calls.
 
 ### Clean up the Project File
 
@@ -148,16 +154,27 @@ The project file should look like this:
 
 </Project>
 ```
+How does this work?  There's no code?
 
-The `<StaticWebAssetBasePath>` is important for the startup page to access the WASM code files.
+The all important bit is the definition of the root component in `Main`.  This creates the dependancy links so all the necessary project DLLs get compiled into the WASM code base.
+
+`<StaticWebAssetBasePath>` sets the subdirectory the WASM code base is available through in the compiled code.  The image below shows the browser Filesystem for the running WASM SPA.
+
+![WASM Page Filesystem](/siteimages/Articles/DB-Primer/Wasm-Page-Filesystem.png)
+
 
 ## BlazorDB.Data
 
-We need to add a new data broker to handle API requests from the WASM SPA.
+We need a new data broker to handle API requests from the WASM SPA.  This is where our design starts to come into play.  The new `APIDataBroker` simply replaces the `ServerDataBroker` in the WASM SPA Services Container.  The `DataConnector` doesn't need to know that the dat broker has changed.  It simply gets handed a class that implements `IDataBroker` and has a `SelectAllRecordsAsync<TRecord>()` method it can call. 
+
+The diagram below shows the Services setup for the two versions of the SPA.
+
+![WASM Page Filesystem](/siteimages/Articles/DB-Primer/SPA-Services.png)
+
 
 ### APIDataBroker
 
-Add a `APIDataBroker` class to the *Brokers* folder.
+Add an `APIDataBroker` class to the *Brokers* folder.
 
 ```csharp
 using BlazorDB.Core;
@@ -185,7 +202,7 @@ namespace BlazorDB.Data
 }
 ```
 
-This is a generic data broker.  As long as we stick to naming convertions - controllers with a path *API/DataClassName/xxx*.  
+This is a generic data broker.  As long as we stick to naming convertions - controllers with a path *API/DataClassName/xxx* - we can use boilerplate code.  
 1. `GetRecordName` gets the record class name.
 2. The service gets the `HttpClient` registered in the Services container.
 
@@ -206,12 +223,13 @@ Update `AddWASMApplicationServices` to include adding the `APIDataBroker` as the
 
 ## BlazorDB.UI
 
-Add an additional `@page` definition for each *RouteView*.  This is so the pages are accessible to both Server and WASM SPA's.
+Add additional `@page` definitions for each *RouteView*.
 
 Index.razor
 ```html
 @page "/"
-@page "/wasm/"
+@page "/index"
+@page "/wasm/index"
 ```
 Counter.razor
 ```html
@@ -223,6 +241,133 @@ FetchData.razor
 @page "/fetchdata"
 @page "/wasm/fetchdata"
 ```
+
+### MainLayout
+
+Update `MainLayout`.
+
+```html
+@inherits LayoutComponentBase
+@namespace BlazorDB.UI.Components
+
+<div class="page">
+    <div class="@_sidebarCss">
+        <NavMenu />
+    </div>
+
+    <div class="main">
+        <div class="top-row px-4">
+            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+        </div>
+
+        <div class="content px-4">
+            @Body
+        </div>
+    </div>
+</div>
+```
+```csharp
+@code 
+{
+    [Inject] NavigationManager NavManager { get; set; }
+    private bool _isWasm => NavManager?.Uri.Contains("wasm", StringComparison.CurrentCultureIgnoreCase) ?? false;
+    private string _sidebarCss => _isWasm ? "sidebar sidebar-teal" : "sidebar sidebar-steel";
+}
+```
+And MainLayout.razor.css
+
+```css
+.... /*line 10*/
+.sidebar {
+    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+}
+
+/* Added Styles*/
+.sidebar-teal {
+    background-image: linear-gradient(180deg, rgb(0, 64, 128) 0%, rgb(0,96,192) 70%);
+}
+
+.sidebar-steel {
+    background-image: linear-gradient(180deg, #2a3f4f 0%, #446680 70%);
+}
+/* End Added Styles*/
+.....
+```
+
+The component checks the URL and if it contains "wasm" it changes the sidebar colour.
+
+## NavMenu
+
+Update `NavMenu`
+
+```html
+@namespace BlazorDB.UI.Components
+
+<div class="top-row pl-4 navbar navbar-dark">
+    @*Change title*@
+    <a class="navbar-brand" href="">@_title</a>
+    <button class="navbar-toggler" @onclick="ToggleNavMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <ul class="nav flex-column">
+        @*Add links bewteen contexts*@
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="@_otherContextUrl" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> @_otherContextLinkName
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Home
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="oi oi-plus" aria-hidden="true"></span> Counter
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="fetchdata">
+                <span class="oi oi-list-rich" aria-hidden="true"></span> Fetch data
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="weatherforecasts">
+                <span class="oi oi-list-rich" aria-hidden="true"></span> WeatherForecasts
+            </NavLink>
+        </li>
+    </ul>
+</div>
+```
+```csharp
+@code {
+
+    [Inject] NavigationManager NavManager { get; set; }
+
+    private bool _isWasm => NavManager?.Uri.Contains("wasm", StringComparison.CurrentCultureIgnoreCase) ?? false;
+
+    private string _otherContextUrl => _isWasm ? "/" : "/wasm";
+
+    private string _otherContextLinkName => _isWasm ? "Server Home" : "WASM Home";
+
+    private string _title => _isWasm ? "BlazorDB WASM" : "BlazorDB Server";
+
+    private bool collapseNavMenu = true;
+
+    private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}
+```
+
+The component uses the URL to set the correct title and navigation options for WASM or Server mode.
+
 
 ## BlazorDB.Web
 
@@ -245,9 +390,9 @@ Add a *_WASM.cshtml* file to the *Pages* folder.  This is the launch page for th
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlazorDB.WASM</title>
     <base href="/wasm/" />
-    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
-    <link href="css/site.css" rel="stylesheet" />
-    <link href="BlazorDB.Web.styles.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/bootstrap/bootstrap.min.css" />
+    <link href="/css/site.css" rel="stylesheet" />
+    <link href="/BlazorDB.Web.styles.css" rel="stylesheet" />
 </head>
 <body>
     <div id="app">Loading...</div>
@@ -311,11 +456,51 @@ In `Configure` we add a new middleware section based on mapping.  All URLs to */
 
         app.UseEndpoints(endpoints =>
         {
+            endpoints.MapControllers();
             endpoints.MapBlazorHub();
             endpoints.MapFallbackToPage("/_Host");
         });
     }
 ```
 
+## How does all this Work?
 
-NEED TO ADD NAVMENU  AND LAYOUT CHANGES
+Lets look at some scenarios to understand what's going on.
+
+### Browsing to the Site - https://mysite.com/
+
+`Startup.Config` runs and uses the default endpoint mapping which maps a fallback page */_Host* i.e. *_Host.cshtml*.  This is the Blazor Server startup page so the Blazor Server SPA starts.
+
+### Browsing directly to the WASM Site - https://mysite.com/wasm
+
+`Startup.Config` runs and uses the WASM endpoint mapping as the URL matches `Request.Path.StartsWithSegments("/wasm")`.  This maps to a fallback page */_WASM* i.e. *_WASM.cshtml*.  This is the Blazor WASM startup page so the Blazor WASM SPA starts.
+
+### Clicking on the WASM link in the Server SPA - https://mysite.com/wasm
+
+The server `Router` doesn't recognise the route so it forces a browser page load for the URL.  This is now the same as *Browsing directly to the WASM Site* above.
+
+### Browsing directly to https://mysite.com/counter
+
+`Startup.Config` runs and uses the default endpoint mapping which maps a fallback page */_Host* i.e. *_Host.cshtml*.  ..... as above.
+
+### Browsing directly to https://mysite.com/wasm/counter
+
+`Startup.Config` runs and uses the WASM endpoint mapping as the URL matches `Request.Path.StartsWithSegments("/wasm")`.  This maps to a fallback page */_WASM* i.e. *_WASM.cshtml*.  ..... as above.
+
+### Clicking a link within the Server SPA to Counter - https://mysite.com/counter
+
+The server `Router` recognises the route and loads the appropriate RouteView component.  No page loading takes place.
+
+### Clicking a link within the WASM SPA to Counter - https://mysite.com/counter
+
+The server `Router` recognises the route and loads the appropriate RouteView component.  No page loading takes place.
+
+
+
+
+
+
+
+
+
+
