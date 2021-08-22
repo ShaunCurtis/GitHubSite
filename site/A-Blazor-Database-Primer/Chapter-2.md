@@ -150,6 +150,13 @@ namespace BlazorDB.Data
                         Summary = summaries[rng.Next(summaries.Length)]
                     }).ToList();
         }
+
+        // method to seed the Data Store WesatherForecast dataset with a known dataset
+        public void OverrideWeatherForecastDateSet(List<WeatherForecast> list)
+        {
+            this._weatherForecastRecords.Clear();
+            list.ForEach(item => this._weatherForecastRecords.Add(new _WeatherForecast { ID = item.ID, Date = item.Date, TemperatureC = item.TemperatureC, Summary = item.Summary }));
+        }
     }
 }
 ```
@@ -320,22 +327,41 @@ The test project file should look like this:
 </Project>
 ```
 
-Add two partial classes to the test project `UnitTests.cs` and `UnitTests.Base.cs`.
-
-`UnitTests.Base.cs` looks like this with a sinlge method to build a dummy `List<WeatherForecast>`.
+First we need a WeatherForecast utility class to build test `WeatherForecast` data sets.
 
 ```csharp
+// Directory: BlazorDb.Test/Base
 using BlazorDB.Core;
+using BlazorDB.Core.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace BlazorDb.Data.Test
+namespace BlazorDb.Test
 {
-    public partial class UnitTests
+    internal static class WeatherForcastUtils
     {
-        private ValueTask<List<WeatherForecast>> CreateRandomWeatherForecastListAsync(int number)
+        public static ValueTask<List<WeatherForecast>> CreateRandomWeatherForecastListAsync(int number)
+            => ValueTask.FromResult(CreateRandomWeatherForecastList(number));
+
+        public static ValueTask<List<WeatherForecast>> CreateWeatherForecastListAsync(List<WeatherForecast> list)
+            => ValueTask.FromResult<List<WeatherForecast>>(list);
+
+        public static List<WeatherForecast> CreateFixedWeatherForecastList(int number)
+            => Enumerable.Range(1, number).
+                 Select(index => FixedWeatherForcast).ToList();
+
+        public static WeatherForecast FixedWeatherForcast
+            => new WeatherForecast
+            {
+                ID = Guid.NewGuid(),
+                Date = DateTime.Now,
+                TemperatureC = 20,
+                Summary = "Hot"
+            };
+
+        public static List<WeatherForecast> CreateRandomWeatherForecastList(int number)
         {
             var rng = new Random();
             var summaries = new[]  {
@@ -349,31 +375,41 @@ namespace BlazorDb.Data.Test
                      TemperatureC = rng.Next(-20, 55),
                      Summary = summaries[rng.Next(summaries.Length)]
                  }).ToList();
-            return ValueTask.FromResult<List<WeatherForecast>>(list);
+            return list;
         }
+
+        public static ValueTask<List<WeatherForecast>> GetPagedWeatherForecastListAsync(List<WeatherForecast> list, RecordPagingData pagingData)
+            => ValueTask.FromResult(list
+                .Skip(pagingData.StartRecord)
+                .Take(pagingData.PageSize)
+                .ToList());
     }
 }
 ```
 
-In `UnitTests.cs` we add a single test `DataBrokerShouldGet50WeatherForecastsAsync`.
+Add a `DataBrokerTests` class.
 
 ```csharp
+// Directory: BlazorDb.Test/Unit
+using BlazorDb.Test;
 using BlazorDB.Core;
+using BlazorDB.Core.Data;
 using BlazorDB.Data;
-using Moq;
 using System.Collections.Generic;
 using Xunit;
 
-namespace BlazorDb.Data.Test
+namespace BlazorDb.Tests
 {
-    public partial class UnitTests
+    public class DataBrokerTests
     {
-
         [Fact]
-        public async void DataBrokerShouldGet50WeatherForecastsAsync()
+        public async void DataBrokerShouldGetDataStoreWeatherForecastsAsync()
         {
             // define
+            int DataStoreRecords = 50;
+            var records = WeatherForcastUtils.CreateRandomWeatherForecastList(DataStoreRecords);
             var weatherForecastDataStore = new WeatherDataStore();
+            weatherForecastDataStore.OverrideWeatherForecastDateSet(records);
             var dataBroker = new ServerDataBroker(weatherForecastDataStore: weatherForecastDataStore);
 
             // test
@@ -381,11 +417,12 @@ namespace BlazorDb.Data.Test
 
             // assert
             Assert.IsType<List<WeatherForecast>>(retrievedRecords);
-            Assert.Equal(50, retrievedRecords.Count);
+            Assert.Equal(DataStoreRecords, retrievedRecords.Count);
         }
     }
 }
 ```
+
 Our data store builds a 50 record dataset, so we can test if:
 1. We get a `List<WeatherForecast>` as our return object - we get a list of the correct records type.
 2. We get 50 rows.

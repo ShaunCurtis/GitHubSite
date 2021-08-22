@@ -66,28 +66,44 @@ We get passed the registered `IDataBroker` from the Services Container when the 
 
 ### Testing
 
-We can test the connector with the follow test added to `UnitTests`:
+We can test the connector.  Add a `DataConnectorTests` class.
 
 ```csharp
-[Fact]
-public async void DataConnectorShouldGet25WeatherForecastsAsync()
+// Directory: BlazorDb.Test/Unit
+using BlazorDB.Core;
+using BlazorDB.Core.Data;
+using Moq;
+using System.Collections.Generic;
+using Xunit;
+
+namespace BlazorDb.Test
 {
-    // define
-    var dataBrokerMock = new Mock<IDataBroker>();
-    var dataConnector = new DataConnector(dataBroker: dataBrokerMock.Object);
-    dataBrokerMock.Setup(broker =>
-        broker.SelectAllRecordsAsync<WeatherForecast>())
-        .Returns(CreateRandomWeatherForecastListAsync(25)
-        );
+    public partial class DataConnectorTests
+    {
 
-    // test
-    var retrievedRecords = await dataConnector.GetRecordsAsync<WeatherForecast>();
+        [Fact]
+        public async void DataConnectorShouldGet25WeatherForecastsAsync()
+        {
+            // define
+            var noOfRecords = 25;
 
-    // assert
-    Assert.IsType<List<WeatherForecast>>(retrievedRecords);
-    Assert.Equal(25, retrievedRecords.Count);
-    dataBrokerMock.Verify(broker => broker.SelectAllRecordsAsync<WeatherForecast>(), Times.Once);
-    dataBrokerMock.VerifyNoOtherCalls();
+            var dataBrokerMock = new Mock<IDataBroker>();
+            var dataConnector = new DataConnector(dataBroker: dataBrokerMock.Object);
+            dataBrokerMock.Setup(broker =>
+                broker.SelectAllRecordsAsync<WeatherForecast>())
+               .Returns(WeatherForcastUtils.CreateRandomWeatherForecastListAsync(noOfRecords)
+               );
+
+            // test
+            var retrievedRecords = await dataConnector.GetRecordsAsync<WeatherForecast>();
+
+            // assert
+            Assert.IsType<List<WeatherForecast>>(retrievedRecords);
+            Assert.Equal(noOfRecords, retrievedRecords.Count);
+            dataBrokerMock.Verify(broker => broker.SelectAllRecordsAsync<WeatherForecast>(), Times.Once);
+            dataBrokerMock.VerifyNoOtherCalls();
+        }
+    }
 }
 ```
 
@@ -192,32 +208,47 @@ This is minimlistic, just setting `IRecord` as `WeatherForecast`.
 
 ### Testing
 
-We can add a test to check thst this is working correctly.  Add the folwwoing method to *BlazorDB.Test/UnitTests*:
+We can now test our ViewService.  Add a `ViewServiceTests` class
 
 ```csharp
-    [Fact]
-    public async void ViewShouldGet25WeatherForecastsAsync()
+// Directory: BlazorDb.Test/Unit
+using BlazorDB.Core;
+using Moq;
+using System.Collections.Generic;
+using Xunit;
+
+namespace BlazorDb.Test
+{
+    public class ViewServiceTests
     {
-        // define
-        var dataConnectorMock = new Mock<IDataConnector>();
-        var weatherForecastViewService = new WeatherForecastViewService(dataConnector: dataConnectorMock.Object);
-        dataConnectorMock.Setup(item =>
-            item.GetRecordsAsync<WeatherForecast>())
-            .Returns(CreateRandomWeatherForecastListAsync(25)
-            );
-        object eventSender = null;
-        weatherForecastViewService.RecordListHasChanged += (sender, e) => { eventSender = sender; };
 
-        // test
-        await weatherForecastViewService.GetRecordsAsync();
+        [Fact]
+        public async void ViewShouldGetWeatherForecastsAsync()
+        {
+            // define
+            var noOfRecords = 25;
+            var dataConnectorMock = new Mock<IDataConnector>();
+            var weatherForecastViewService = new WeatherForecastViewService(dataConnector: dataConnectorMock.Object);
+            dataConnectorMock.Setup(item =>
+                item.GetRecordsAsync<WeatherForecast>())
+               .Returns(WeatherForcastUtils.CreateRandomWeatherForecastListAsync(noOfRecords)
+               );
+            object eventSender = null;
+            weatherForecastViewService.RecordListHasChanged += (sender, e) => { eventSender = sender; };
 
-        // assert
-        Assert.IsType<List<WeatherForecast>>(weatherForecastViewService.Records);
-        Assert.Equal(25, weatherForecastViewService.RecordCount);
-        Assert.IsType<List<WeatherForecast>>(eventSender);
-        dataConnectorMock.Verify(item => item.GetRecordsAsync<WeatherForecast>(), Times.Once);
-        dataConnectorMock.VerifyNoOtherCalls();
+            // test
+            await weatherForecastViewService.GetRecordsAsync();
+
+            // assert
+            Assert.IsType<List<WeatherForecast>>(weatherForecastViewService.Records);
+            Assert.Equal(noOfRecords, weatherForecastViewService.RecordCount);
+            Assert.IsType<List<WeatherForecast>>(eventSender);
+            dataConnectorMock.Verify(item => item.GetRecordsAsync<WeatherForecast>(), Times.Once);
+            dataConnectorMock.VerifyNoOtherCalls();
+        }
+
     }
+}
 ```
 
 We mock the data connector and do the same set of tests as before.

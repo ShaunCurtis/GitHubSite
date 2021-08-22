@@ -225,6 +225,7 @@ namespace BlazorDB.UI
     }
 }
 ```
+## List Components
 
 ### UIListColumn
 
@@ -371,6 +372,8 @@ else
 }
 ```
 
+## Form and RouteView Components
+
 ### WeatherForecastListForm
 
 `WeatherForecastListForm` is the form for displaying `WeatherForecasts`.
@@ -415,7 +418,7 @@ The form:
 <WeatherForecastListForm/>
 ```
 
-## Update NavMenu
+## Navigation Update
 
 Add a link to NavMenu
 
@@ -430,4 +433,94 @@ Add a link to NavMenu
         </li>
     </ul>
 </div>
+```
+
+## Testing
+
+We use **bUnit** to test components.  It runs the component in a Renderer environment anf gives us access to interact with it, and examine the rendered DOM.
+
+Add folder *Components* to *BlazorDB.Test* and add a `WeatherForcastFormTests` class.
+
+See the inline comments for details.
+
+```csharp
+using AngleSharp.Html.Dom;
+using BlazorDB.Core;
+using BlazorDB.UI.Forms;
+using Bunit;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
+using Xunit;
+
+namespace BlazorDb.Component.Tests
+{
+    public class WeatherForecastFormTests
+    {
+
+        [Fact]
+        public void WeatherForcastListFormShouldDisplayDataRows()
+        {
+            // define : Set up a fixed size record table
+            var rowsToTest = 10;
+            // Gets a List of WeatherForecasts
+            var dataRows = WeatherForcastUtils.CreateRandomWeatherForecastList(rowsToTest);
+            // Mocks a IDataConnector
+            var dataConnectorMock = new Mock<IDataConnector>();
+            // Sets up the Mock to reply to GetRecordsAsync with out datarows
+            dataConnectorMock.Setup(item =>
+                item.GetRecordsAsync<WeatherForecast>())
+               .Returns(WeatherForcastUtils.CreateWeatherForecastListAsync(dataRows));
+
+            // Sets up Test Context to run our component in
+            using var ctx = new TestContext();
+            // Adds the Mock IDataConnector
+            ctx.Services.AddSingleton<IDataConnector>(dataConnectorMock.Object);
+            // Adds a WeatherForecatViewService - this will get the mock IDataConnector injected when it get instanciated.
+            ctx.Services.AddSingleton<WeatherForecastViewService>();
+
+
+            // Act: 
+            // Renders the WeatherForecastListForm component and gets the html DOM
+            var cut = ctx.RenderComponent<WeatherForecastListForm>();
+
+            // Assert:
+            // Get the root node 
+            var content = cut.Nodes[0];
+            // And check it is a Html Table
+            Assert.True(content is IHtmlTableElement);
+            // Get the Table
+            var table = (IHtmlTableElement)content;
+            // Check it has 1 header row
+            Assert.True(table.Head.Rows.Length == 1);
+            // And 5 columns in the header
+            Assert.True(table.Head.Rows[0].Cells.Length == 5);
+            // Check it has rowsToTest rows in the body
+            Assert.True(table.Bodies[0].Rows.Length == rowsToTest);
+            // Get the body rows collection
+            var rows = table.Bodies[0].Rows;
+            for (var row = 0; row < rows.Length; row++)
+            {
+                // Check the row has 5 cells
+                Assert.True(rows[row].Cells.Length == 5);
+                // Check the row Id is the record ID
+                Assert.True(rows[row].Id.Equals(dataRows[row].ID.ToString()));
+                // Check the first cell contains the datarow date value
+                Assert.True(this.GetCellContent(rows[row].Cells[0]).Equals(dataRows[row].Date.ToShortDateString()));
+                // Check the second cell contains the datarow TemperatureC value
+                Assert.True(this.GetCellContent(rows[row].Cells[1]).Equals(dataRows[row].TemperatureC.ToString()));
+                // Check the third cell contains the datarow TemperatureF value
+                Assert.True(this.GetCellContent(rows[row].Cells[2]).Equals(dataRows[row].TemperatureF.ToString()));
+                // Check the fourth cell contains the datarow Summary value
+                Assert.True(this.GetCellContent(rows[row].Cells[3]).Equals(dataRows[row].Summary));
+                // Check the fifth cell contains the datarow Name value
+                Assert.True(this.GetCellContent(rows[row].Cells[4]).Equals(dataRows[row].Name));
+            }
+        }
+
+        private string GetCellContent(IHtmlTableCellElement cell)
+            => cell.ClassName.Contains("max-column")
+            ? cell.Children[0].Children[0].InnerHtml
+            : cell.InnerHtml;
+    }
+}
 ```

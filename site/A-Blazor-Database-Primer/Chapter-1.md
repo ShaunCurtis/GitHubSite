@@ -14,7 +14,7 @@ Where do you start?  It's a little daunting.  How can you minimize making mistak
 
 This primer is intended to provide guidance on how to get up and running.  It's aimed primarily at the small to medium sized project with one or two developers working on it.  It takes a very practical approach: start with the standard Blazor Server template and turn it into a properly structured and testable solution.
 
-# Methodology
+## Methodology
 
 There are many methodologies you could apply in designing and implementing an application.  Mine is a fairly simple three domain model.
 
@@ -62,9 +62,14 @@ The benefits in this design become apparent when we need to change out the Data 
     services.AddScoped<WeatherForecastViewService>();
 ```
 
-# The Initial Solution
+## The Initial Solution
 
-Create a new solution using the standard Blazor Server project with no authenication - BlazorDB.  
+Create a new solution using the standard Blazor Server project with no authenication
+
+ - Solution Name: **Blazr.Primer**.
+ - Project Name: **Blazr.Primer.Web**.
+
+Run the solution to make sure it builds and runs.
 
 Why Server? I want a WebAssembly application.
 
@@ -73,15 +78,314 @@ It is faster, easier and more efficient developing using Server Mode.  Design yo
 You should now have a solution with one "Web" project.
 
 Create the following projects in the solution:
-1. *BlazorDB.Core* using the *Class Library* template.
-2. *BlazorDB.Data* using the *Class Library* template.
-3. *BlazorDB.UI* using the *Razor Class Library* template.
-4. *BlazorDB.Test* using the *xUnit Test Project* template.
-5. *BlazorDB.Web* using the *Blazor Server App* template.
+1. *Blazr.Primer.Core* using the *Class Library* template.
+2. *Blazr.Primer.Data* using the *Class Library* template.
+3. *Blazr.Primer.UI* using the *Razor Class Library* template.
+4. *Blazr.Primer.Test* using the *xUnit Test Project* template.
+5. *Blazr.Primer* using the *ARazor Class Library* template.
 
-6. Clear the contents from projects 1-4.  
-7. Leave *BlazorDB.Web* as is.  
-8. Set *BlazorDB.Web* as the startup project.
+### Blazr.Primer
+
+Clear everything 
+
+Add the following folders:
+
+- /Extensions
+
+Update the Project file.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="5.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.Core\Blazr.Primer.Core.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.Data\Blazr.Primer.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Extensions\" />
+  </ItemGroup>
+
+</Project>
+```
+
+### Blazr.Primer.Core
+
+Clear everything.
+
+Add the following folders:
+
+- /Connectors
+- /DataClasses
+- /Data
+- /Interfaces
+- /ViewServices
+
+Update the Project file.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Connectors\" />
+    <Folder Include="DataClasses\" />
+    <Folder Include="Data\" />
+    <Folder Include="Interfaces\" />
+    <Folder Include="ViewServices\" />
+  </ItemGroup>
+
+</Project>
+```
+
+### Blazr.Primer.Data
+
+Clear everything.
+
+Add the following folders:
+
+- /Brokers
+- /DB
+
+Update the Project file.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.Core\Blazr.Primer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Brokers\" />
+    <Folder Include="DB\" />
+  </ItemGroup>
+
+</Project>
+```
+
+### Blazr.Primer.Test
+
+Clear everything.
+
+Add the following folders:
+
+- /Base
+- /Components
+- /System
+- /Unit
+
+Update the Project file.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="bunit" Version="1.2.49" />
+    <PackageReference Include="bunit.web.testcomponents" Version="1.2.49" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.11.0" />
+    <PackageReference Include="xunit" Version="2.4.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="3.1.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="6.0.0" />
+    <PackageReference Include="Tynamix.ObjectFiller" Version="1.5.6" />
+    <PackageReference Include="Moq" Version="4.16.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.Core\Blazr.Primer.Core.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.Data\Blazr.Primer.Data.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.UI\Blazr.Primer.UI.csproj" />
+  </ItemGroup>
+
+<ItemGroup>
+    <Folder Include="Base\" />
+    <Folder Include="Components\" />
+    <Folder Include="System\" />
+    <Folder Include="Unit\" />
+  </ItemGroup>
+
+</Project>
+```
+
+### Blazr.Primer.UI
+
+Clear everything.
+
+Add the following folders:
+
+ - /Components/AppControls
+ - /Components/Base
+ - /Components/FormControls
+ - /Components/ListControls
+ - /Extensions/
+ - /Forms/
+ - /Helpers/
+ - /RouteViews/
+
+Update the Project file.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="5.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.Core\Blazr.Primer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Components\AppControls\" />
+    <Folder Include="Components\Base\" />
+    <Folder Include="Components\FormControls\" />
+    <Folder Include="Components\ListControls\" />
+    <Folder Include="Extensions\" />
+    <Folder Include="Forms\" />
+    <Folder Include="Helpers\" />
+    <Folder Include="RouteViews\" />
+  </ItemGroup>
+
+</Project>
+```
+### Blazr.Primer.Web
+
+1. Update *_Imports.razor*
+
+```csharp
+@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+```
+2. Move the contents of *Shared* to *Blazr.Primer.UI/Components/AppControls*, and delete *Shared*.
+
+3. Move *App.razor to *Blazr.Primer.UI/Components/AppControls*.
+
+3. Add `@namespace Blazr.Primer.UI.Components` as the top line of the four moved files *NavMenu.razor*, *MainLayout.razor*, *SurveyPrompt.razor* and *App.razor*.
+
+4. Update *App.razor*.
+
+```xml
+@namespace Blazr.Primer.UI.Components
+<Router AppAssembly="@typeof(App).Assembly" PreferExactMatches="@true">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p>Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
+```
+
+5. Move *Index.Razor*, *FetchData.razor* and *Counter.razor* to *Blazr.Primer.UI/RouteViews*.
+
+6. Add `@namespace Blazr.Primer.UI.RouteViews` as the second line in each of the moved files.
+
+7. Update *FetchData.razor*
+
+```html
+@page "/fetchdata"
+@using Blazr.Primer.Core
+@namespace Blazr.Primer.UI.RouteViews
+@inject WeatherForecastService ForecastService
+
+<h1>Weather forecast</h1>
+.....
+```
+
+8. Move *Data/WeatherForecast.cs* to *Blazr.Primer.Core/DataClasses*, and change it's namespace to `namespace Blazr.Primer.Core`.
+
+9.  Move *Data/WeatherForecastService.cs* to *Blazr.Primer.Core/ViewServices*, and change it's namespace to `namespace Blazr.Primer.Core`.
+
+10. Delete *Data* folder.
+
+11. Update the project file.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="5.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.Core\Blazr.Primer.Core.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.Data\Blazr.Primer.Data.csproj" />
+    <ProjectReference Include="..\Blazr.Primer\Blazr.Primer.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.UI\Blazr.Primer.UI.csproj" />
+  </ItemGroup>
+
+</Project>
+```
+
+11. Update *_Import.razor*
+
+```csharp
+@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+@using Blazr.Primer.Web
+```
+
+12. Update *_host.cshtml*
+
+```html
+```
+
+ 
+
+
+
+13. Clear the contents from projects 1-4.  
+14. Leave *BlazorDB.Web* as is.  
+15. Set *BlazorDB.Web* as the startup project.
 
 You should now have a solution that looks like:
 
@@ -91,3 +395,26 @@ You should now have a solution that looks like:
 Add dependancies to the Data and UI projects back to Core. Add dependancies to the Test project to all three projects.
 
 ![Project Dependancies](/siteimages/Articles/DB-Primer/Project-Dependancies.png)
+
+##  Testing
+
+Testing and coding should go side by side.  I'm not an advocate of Test Driven Design [TTD] but I do believe in developing and testing sit side-by-side.  Write some code and then write a test to make sure it does what you think it does, and tests the edge cases.   There's no separate Testing section, tests are build alongside services and components.
+
+In Blazor we write one of 5 types of classes:
+
+1. **Infrastructure Classes** - `Startup`, `Program`.
+2. **Helper Classes** - utility or helper classes for our main code.  These can include extension classes.
+3. **Data Classes** - classes that represent data we pass around our applications - `WeatherForecast` for example.
+4. **Service Classes** - classes that will run in the Services Container and are available for injection.
+5. **Components** - UI components.  `Index.razor`, `NavMenu.razor`, `App.razor`.  We write these in Razor, but the get compiled into classes of the same name.
+
+The majority of code will be services and components.  These are also the hardest to test.  In the application we will concentrate on these.
+
+Our test frameworks will:
+
+1. Use **xUnit** as the main framework.
+2. Use **bUnit** for Renderer and RenderTree emulation in component testing.
+3. Not use Selenium.  
+4. Use **Moq** extensively to mock up services and test service interactions.
+5. Use **FluentAssertions** to expanding our `Assert` statements.
+6. Use **Tynamix.ObjectFiller** to generate data in some classes.
