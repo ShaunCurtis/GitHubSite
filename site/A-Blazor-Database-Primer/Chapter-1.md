@@ -8,38 +8,40 @@ published: 2021-08-13
 
 # Chapter 1 - Project Design and Structure
 
-You've built the out-of-the-box template, played around a little, added a bit of code.  You're now ready to start on your first application.
+You've built the out-of-the-box template and played around a little with the code.  You're now ready to start your first application.
 
-Where do you start?  It's a little daunting.  How can you minimize making mistakes, taking the wrong road, ....
+It's a little daunting to know where to start?  You expect to make mistakes, take a few wrong turnings, ....
 
-This primer is intended to provide guidance on how to get up and running.  It's aimed primarily at the small to medium sized project with one or two developers working on it.  It takes a very practical approach: start with the standard Blazor Server template and turn it into a properly structured and testable solution.
+This primer is intended to provide guidance on how to get up and running.  It's neither a set of best practices (*..I hate that phrase*), nor highly opinionated.  Take it or leave it, use as little or as much as you want.  It's aimed primarily at the small to medium sized project with one or two developers working on it.  It takes a very practical approach: starts with the standard Blazor Server template and turns it into a properly structured and testable solution.
 
 ## Methodology
 
-There are many methodologies you could apply in designing and implementing an application.  Mine is a fairly simple three domain model.
+Pick your methodology, there are plenty out there.  Mine is a fairly simple three domain model shown below.
 
 ![Methodologies](/siteimages/articles/DB-Primer/Methodology.png)
 
-So what are we trying to achieve?
+So what are we trying to achieve with a methodology?
 
-It's your application, you can build it howver you wish.  You know it intimately, so when things go wrong you know where to look.  But:
-1. What is someone else is going to maintain it?  
-2. What happens when you come back to it a year later?  
-3. How do you test new functionality and updates?  
-4. How do you change to a different data source?  
-5. How do you put a new frontend on the application? 
+It's your application, you can build it whatever way you wish.  You know it intimately, so when things go wrong you know where to look.  **But**:
 
-To answer these question you need to apply structure and principles to you code base.
+1. What happens if you walk away?
+2. What if someone else has to maintain it?  
+3. What happens when you come back to it a year later?  
+4. How do you test new functionality and updates?  
+5. How do you change to a different data source?  
+6. How do you do a major frontend update? 
 
-1.  **Separation of Concerns**.  Classes should represent a *unit of work*.  UI code should not include database access or business logic functionality.
+To answer at least some of these questions, you need to apply structure and principles to you code base.
+
+1.  **Separation of Concerns**.  Classes should represent a single *unit of work*.  UI code should not include database access or business logic functionality.  Building a display table and fetching the data are two separate units of work.
 2.  **Inversion of Control**.  Higher level classes should not depend on lower level classes.  A business logic class should not contain specific declarations for database access classes.
-3.  **Project Dependancy Enforcement**.  Use code projects with strict dependancies to provide separation of concerns.  In my framework there are separate projects for the UI, Core and Data domains, with project level defined project to project dependancies.  I can't code a business logic class with a dependancy on a Data Domain class.
+3.  **Enforce Project Dependancy**.  Use code projects with strict dependancies to provide separation of concerns.  In my framework there are separate projects for the UI, Core and Data domains, with project level defined project to project dependancies.  I can't code a business logic class with a dependancy on a Data Domain class.
 
-The real application is the **Core Domain**: Core = Application and Business logic code.  It represents what makes your application unique.  You should be able to change out the data source and the UI without impacting on the core domain code.  Core domain code only depends on Blazor and third party libraries: there's no dependancies on the other application domains.  The *Data Domain* provides the interface into the data storage.  The *UI Domain* contains all the UI code.
+Your real application is the **Core Domain**: Core = Application and Business logic code.  It represents what makes your application unique.  You should be able to change out the data source and the UI with no impact on the core domain code.  Core domain code only depends on Blazor and third party libraries: there must be no dependancies on the other application domains.  The *Data Domain* provides the interface into the data storage.  The *UI Domain* contains all the UI code.  Both depend on the *Core Domain* but not each other.
 
-Core to Data Domain communications are implemented through interfaces.  Our core domain classes make data requests through an `IDataConnector` interface.  This all plugs together using the Blazor Services container.  
+Core to Data Domain communications are implemented through interfaces.  Our core domain classes make data requests through an `IDataConnector` interface.  This all plugs in the Blazor Services container.  
 
-Let's look at what our application services definition will look like:
+To undertstand this, our application services definition will look like:
 
 ```csharp
     // Data Domain Code
@@ -50,9 +52,11 @@ Let's look at what our application services definition will look like:
     services.AddScoped<WeatherForecastViewService>();
 ```
 
-Our business logic class `WeatherForecastViewService` defines a constructor with an `IDataConnector` argument. When the Services Container instanciates `WeatherForecastViewService` it injects its  instance of `IDataConnector`.  In the code above `DataConnector`.    `DataConnector` defines a constructor with an `IDataBroker` argument, and `ServerDataBroker` a `WeatherDataStore` argument, ....
+Our business logic class `WeatherForecastViewService`'s constructor has an `IDataConnector` argument.  When the Services Container instantiates `WeatherForecastViewService` it injects its instance of `IDataConnector`.  In the code above this is `DataConnector`.   `DataConnector`'s constructor defines `IDataBroker` argument.  This is `ServerDataBroker` which had a constructor argument `WeatherDataStore`, ....
 
-The benefits in this design become apparent when we need to change out the Data Store.  We'll see this when we implement a WASM version of the site, and when we add support for a SQL database data store.
+The benefits become apparent when:
+ - We need to change out the Data Store.  We'll see this later when we implement a SQL database data store.
+ - When we set up the WASM SPA.  It uses a `APIDataBroker` to access data.  THe services definition is shown below.  The core domain services don't change, just the defined `IDataBroker`.
 
 ```csharp
     // Data Domain Code
@@ -64,16 +68,16 @@ The benefits in this design become apparent when we need to change out the Data 
 
 ## The Initial Solution
 
-Create a new solution using the standard Blazor Server project with no authenication
+Create a new solution using the standard *Blazor Server App* template with no authenication.
 
  - Solution Name: **Blazr.Primer**.
  - Project Name: **Blazr.Primer.Web**.
 
 Run the solution to make sure it builds and runs.
 
-Why Server? I want a WebAssembly application.
+Why use Server if I want a WebAssembly application?
 
-It is faster, easier and more efficient developing using Server Mode.  Design your application correctly, and it wil run in either mode.  In Chapter 5 you will learn how to modify the solution to dual mode operation, running both the Server and WASM SPAs from the same web site.
+Simple.  It's faster, easier and more efficient developing with Server.  Design your application correctly, and it will run in either mode.  In Chapter 5 you will learn how to modify the solution to dual mode operation, running both the Server and WASM SPAs from the same web site.
 
 You should now have a solution with one "Web" project.
 
@@ -82,13 +86,11 @@ Create the following projects in the solution:
 2. *Blazr.Primer.Data* using the *Class Library* template.
 3. *Blazr.Primer.UI* using the *Razor Class Library* template.
 4. *Blazr.Primer.Test* using the *xUnit Test Project* template.
-5. *Blazr.Primer* using the *ARazor Class Library* template.
+5. *Blazr.Primer* using the *Razor Class Library* template.
 
 ### Blazr.Primer
 
-Clear everything 
-
-Add the following folders:
+Clear everything. and add the following folders:
 
 - /Extensions
 
@@ -119,9 +121,7 @@ Update the Project file.
 
 ### Blazr.Primer.Core
 
-Clear everything.
-
-Add the following folders:
+Clear everything add the following folders:
 
 - /Connectors
 - /DataClasses
@@ -151,9 +151,7 @@ Update the Project file.
 
 ### Blazr.Primer.Data
 
-Clear everything.
-
-Add the following folders:
+Clear everything and add the following folders:
 
 - /Brokers
 - /DB
@@ -181,9 +179,7 @@ Update the Project file.
 
 ### Blazr.Primer.Test
 
-Clear everything.
-
-Add the following folders:
+Clear everything and add the following folders:
 
 - /Base
 - /Components
@@ -237,9 +233,7 @@ Update the Project file.
 
 ### Blazr.Primer.UI
 
-Clear everything.
-
-Add the following folders:
+Clear everything and add the following folders:
 
  - /Components/AppControls
  - /Components/Base
@@ -249,6 +243,8 @@ Add the following folders:
  - /Forms/
  - /Helpers/
  - /RouteViews/
+
+Add `@using Blazr.Primer.UI.Components` to *_Imports.razor*
 
 Update the Project file.
 
@@ -280,6 +276,7 @@ Update the Project file.
 
 </Project>
 ```
+
 ### Blazr.Primer.Web
 
 1. Update *_Imports.razor*
@@ -377,36 +374,63 @@ Update the Project file.
 12. Update *_host.cshtml*
 
 ```html
+@page "/"
+@namespace Blazr.Primer.Web.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blazr.Primer.Web</title>
+    <base href="~/" />
+    <link rel="stylesheet" href="/css/bootstrap/bootstrap.min.css" />
+    <link href="/css/site.css" rel="stylesheet" />
+    <link href="/Blazr.Primer.Web.styles.css" rel="stylesheet" />
+</head>
+<body>
+    <component type="typeof(Blazr.Primer.UI.Components.App)" render-mode="ServerPrerendered" />
+
+    <div id="blazor-error-ui">
+        <environment include="Staging,Production">
+            An error has occurred. This application may no longer respond until reloaded.
+        </environment>
+        <environment include="Development">
+            An unhandled exception has occurred. See browser dev tools for details.
+        </environment>
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.server.js"></script>
+</body>
+</html>
 ```
-
- 
-
-
-
-13. Clear the contents from projects 1-4.  
-14. Leave *BlazorDB.Web* as is.  
-15. Set *BlazorDB.Web* as the startup project.
 
 You should now have a solution that looks like:
 
-![Solution](/siteimages/Articles/DB-Primer/Article-1-solution.png)
+![Solution](/siteimages/Articles/DB-Primer/Chapter-1-Solution.png)
 
-
-Add dependancies to the Data and UI projects back to Core. Add dependancies to the Test project to all three projects.
+With dependancies as shown.  Ignore *Blazr.Primer.Controller* and *Blazr.Primer.WASM*.  We will add these later.
 
 ![Project Dependancies](/siteimages/Articles/DB-Primer/Project-Dependancies.png)
 
 ##  Testing
 
-Testing and coding should go side by side.  I'm not an advocate of Test Driven Design [TTD] but I do believe in developing and testing sit side-by-side.  Write some code and then write a test to make sure it does what you think it does, and tests the edge cases.   There's no separate Testing section, tests are build alongside services and components.
+Testing and coding should go side by side.  I'm not an advocate of Test Driven Design [TTD] but I do believe in developing and testing at the same time.  Write some code, write a test to make sure it does what you think it does, and what what happens in edge conditions.   There's no separate Testing sections in this book, tests are build as services and components are built.
 
-In Blazor we write one of 5 types of classes:
+In general, we write one of six classes types:
 
 1. **Infrastructure Classes** - `Startup`, `Program`.
 2. **Helper Classes** - utility or helper classes for our main code.  These can include extension classes.
 3. **Data Classes** - classes that represent data we pass around our applications - `WeatherForecast` for example.
 4. **Service Classes** - classes that will run in the Services Container and are available for injection.
-5. **Components** - UI components.  `Index.razor`, `NavMenu.razor`, `App.razor`.  We write these in Razor, but the get compiled into classes of the same name.
+5. **Controllers** - API classes that run on a standard ASP.Net Core web server.
+6. **Components** - UI components.  `Index.razor`, `NavMenu.razor`, `App.razor`.  We write these in Razor, but the get compiled into classes of the same name.
 
 The majority of code will be services and components.  These are also the hardest to test.  In the application we will concentrate on these.
 

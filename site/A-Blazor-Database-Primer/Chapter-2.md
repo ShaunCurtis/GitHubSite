@@ -7,23 +7,23 @@ published: 2021-08-13
 ---
 # Chapter 2 - The Data Store and Data Classes
 
-Data is retrieved from the data store into data classes.  To add structure to our application we are going to apply some rules:
+Data is retrieved from data stores into data classes.  We apply some rules to our data classes so we can write a lot of boilerplate code for data handling:
 
-1. All data classes need to a `IRecord` interface we will define.  This will define some properties all data classes must implement.  We will also use this interface in our generic classes and methods.
-2. All Data classes will be immutable and there implemented as `records`.
-3. All data classes and their data store datasets will use the same names.  Again we'll use this convention in our generic methods.
+1. All data classes implement a `IRecord` interface.  This defines properties all data classes must implement.
+2. All Data classes must be immutable and there implemented as `records`.  Specific edit classes will be used in edit operations.
+3. All data classes and their data store datasets use the same names.
 
-Which domain do our data classes belong?  
+In which domain do data classes belong?
 
-The initial answer is obviously Data.  However, the moment you start to write some application logic code, you will need to use a data class.  Core can't depend on Data, so data classes live in the Core Domain.  I'll discuss more complex examples in a later chapter where we have multiple data classes representing the same data set and where those live.
+The initial answer is Data Domain.  However, application logic code uses the data classes.  As core code can't depend on Data, data classes belong in the Core Domain.  I'll discuss more complex examples in a later chapter where we have multiple data classes representing the same data set and where those live.
 
 ## IRecord
 
-Add a public interface to *BlazorDB.Core/Interfaces* called `IRecord`.
+Add a `IRecord` public interface to *Blazr.Primer.Core/Interfaces*.
 
 ```csharp
 using System;
-namespace BlazorDB.Core
+namespace Blazr.Primer.Core
 {
     public interface IRecord
     {
@@ -40,14 +40,14 @@ All dataclasses implement this interface.  They must have:
 
 ## The WeatherForecast Data Classes
 
-Move `WeatherForecast` from *BlazorDB/data* to *BlazorDB.Core/DataClasses*.
+Move `WeatherForecast` from *Blazr.Primer/data* to *Blazr.Primer.Core/DataClasses*.
 
 Modify `WeatherForecast` to:
 
 ```csharp
 using System;
 
-namespace BlazorDB.Core
+namespace Blazr.Primer.Core
 {
     public record WeatherForecast : IRecord
     {
@@ -74,14 +74,14 @@ To get started, We're building an in-memory data store that "mimics" a Entity Fr
 Add a `DB` folder to *BlazorDB.Data*, and add a `WeatherDataStore` class.
 
 ```csharp
-using BlazorDB.Core;
+using Blazr.Primer.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace BlazorDB.Data
+namespace Blazr.Primer.Data
 {
     public class WeatherDataStore
     {
@@ -205,13 +205,13 @@ Data Brokers are the external interface for the **Data Domain** black box.  The 
 
 ### IDataBroker
 
-Add a *Interface* folder to *BlazorDB.Core*, and add a `IDataBroker` interface.
+Add `IDataBroker` interface to *Blazr.Primer.Core/Interfaces*.
 
 ```csharp
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace BlazorDB.Core
+namespace Blazr.Primer.Core
 {
     public interface IDataBroker
     {
@@ -234,12 +234,12 @@ This is the base interface definition.  It resides in the **Data Domain**.
 Add a *Broker* folder to *BlazorDB.Core*, and add a `DataBroker` class.
 
 ```csharp
-using BlazorDB.Core;
+using Blazr.Primer.Core;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace BlazorDB.Data
+namespace Blazr.Primer.Data
 {
     public abstract class DataBroker : IDataBroker
     {
@@ -258,11 +258,11 @@ Finally a real implementation.
 Add a *Broker* folder to *BlazorDB.Core*, and add a `ServerDataBroker` class.
 
 ```csharp
-using BlazorDB.Core;
+using Blazr.Primer.Core;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace BlazorDB.Data
+namespace Blazr.Primer.Data
 {
     public class ServerDataBroker : DataBroker, IDataBroker
     {
@@ -292,55 +292,19 @@ This uses generics and the naming conventions to get the correct DataSet for `TR
 
 At this point we can set up our first test.
 
-The test project file should look like this:
-
-```csharp
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.10.0" />
-    <PackageReference Include="xunit" Version="2.4.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="3.1.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="FluentAssertions" Version="5.10.3" />
-    <PackageReference Include="Tynamix.ObjectFiller" Version="1.5.6" />
-    <PackageReference Include="Moq" Version="4.16.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\BlazorDB.Core\BlazorDB.Core.csproj" />
-    <ProjectReference Include="..\BlazorDB.Data\BlazorDB.Data.csproj" />
-  </ItemGroup>
-
-</Project>
-```
-
 First we need a WeatherForecast utility class to build test `WeatherForecast` data sets.
 
 ```csharp
 // Directory: BlazorDb.Test/Base
-using BlazorDB.Core;
-using BlazorDB.Core.Data;
+using Blazr.Primer.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace BlazorDb.Test
+namespace Blazr.Primer.Test
 {
-    internal static class WeatherForcastUtils
+    internal static class WeatherForcastHelper
     {
         public static ValueTask<List<WeatherForecast>> CreateRandomWeatherForecastListAsync(int number)
             => ValueTask.FromResult(CreateRandomWeatherForecastList(number));
@@ -377,12 +341,6 @@ namespace BlazorDb.Test
                  }).ToList();
             return list;
         }
-
-        public static ValueTask<List<WeatherForecast>> GetPagedWeatherForecastListAsync(List<WeatherForecast> list, RecordPagingData pagingData)
-            => ValueTask.FromResult(list
-                .Skip(pagingData.StartRecord)
-                .Take(pagingData.PageSize)
-                .ToList());
     }
 }
 ```
@@ -391,14 +349,13 @@ Add a `DataBrokerTests` class.
 
 ```csharp
 // Directory: BlazorDb.Test/Unit
-using BlazorDb.Test;
-using BlazorDB.Core;
-using BlazorDB.Core.Data;
-using BlazorDB.Data;
+using Blazr.Primer.Test;
+using Blazr.Primer.Core;
+using Blazr.Primer.Data;
 using System.Collections.Generic;
 using Xunit;
 
-namespace BlazorDb.Tests
+namespace Blazr.Primer.Tests
 {
     public class DataBrokerTests
     {
@@ -429,5 +386,10 @@ Our data store builds a 50 record dataset, so we can test if:
 
 On the project you can now run the test and make sure it passes.  Check the errors and debug if you have problems.
 
-![Unit Testing](/siteimages/articles/DB-Primer/unittest-1.png)
+![Unit Testing](/siteimages/articles/DB-Primer/Chapter-2-UnitTests.png)
 
+## Summary
+
+We have built our *Data Domain* code and used *xUnit* to test the code.  We don't need a fully functional Blazor application to test our unit test our services.
+
+The current Blazor solution uses the code we built in Chapter 1.  None of the above code will be used.

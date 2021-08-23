@@ -23,24 +23,40 @@ Clear both projects down to only *program.cs*.
 
 ## BlazorDB.Controllers
 
-This project is where we code the API controllers.  It should be a `Microsoft.NET.Sdk.Web` to give us the right framework to implement controllers. The WASM SPA calls the API controller for its data.
+This project holds the API controllers.  It uses the `Microsoft.NET.Sdk.Web` Framework to implement controllers.
 
-We implement a single `WeatherForecastController` with a single route.
+Remove everything but *Program.cs*.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.Core\Blazr.Primer.Core.csproj" />
+  </ItemGroup>
+
+</Project>
+```
+
+As we only have a single data class, we implement a single controller `WeatherForecastController`.
 
 ### Controllers
 
-Add a *Controller* folder to *BlazorDB.Controllers* and a `WeatherForecastController` class.
+Add `WeatherForecastController` to *Blazr.Primer.Controllers/Controllers*.
 
-The controller gets passes the Services Container registered `IDataBroker` on instanciation.  We'll see how we map this controller to the actual site shortly.
+The controller constructor defines a `IDataBroker` argument.
 
 ```csharp
-using BlazorDB.Core;
+using Blazr.Primer.Core;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MVC = Microsoft.AspNetCore.Mvc;
 
-namespace BlazorDB.Controllers
+namespace Blazr.Primer.Controllers
 {
     [ApiController]
     public class WeatherForecastController : ControllerBase
@@ -55,14 +71,13 @@ namespace BlazorDB.Controllers
         [MVC.Route("/api/weatherforecast/list")]
         [HttpGet]
         public async Task<List<WeatherForecast>> GetListAsync() => await DataService.SelectAllRecordsAsync<WeatherForecast>();
-
     }
 }
 ```
 
 ### Program.cs
 
-A web project must have a `Main`, so we give it an empty one..
+A web project must have a `Main`.  It's not used, so we define an empty one.
 
 ```csharp
 namespace BlazorDB.Controllers
@@ -73,96 +88,6 @@ namespace BlazorDB.Controllers
     }
 }
 ```
-
-### Clean up the Project File
-
-The project file should look like this:
-
-```xml
-<Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\BlazorDB.Core\BlazorDB.Core.csproj" />
-    <ProjectReference Include="..\BlazorDB.Data\BlazorDB.Data.csproj" />
-  </ItemGroup>
-
-</Project>
-```
-
-## BlazorDB.WASM
-
-This project builds the WASM code and associated configuration and JS files.
-
-### Program.cs
-
-```csharp
-using BlazorDB.SPA;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Net.Http;
-using System.Threading.Tasks;
-
-namespace BlazorDB.WASM
-{
-    public class Program
-    {
-        public static async Task Main(string[] args)
-        {
-            var builder = WebAssemblyHostBuilder.CreateDefault(args);
-            builder.RootComponents.Add<BlazorDB.UI.App>("#app");
-
-            builder.Services.AddWASMApplicationServices();
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-
-            await builder.Build().RunAsync();
-        }
-    }
-}
-```
-
-1. Sets the root component to `BlazorDB.UI.App` - the same `App` as used by the Server project.
-2. Adds the services defined in the *BlazorDB* `ServiceCollectionExtensions`.
-3. Adds a `HttpClient` service to make API calls.
-
-### Clean up the Project File
-
-The project file should look like this:
-
-```xml
-<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
-
-  <PropertyGroup>
-    <StaticWebAssetBasePath>wasm</StaticWebAssetBasePath>
-    <TargetFramework>net5.0</TargetFramework>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="5.0.9" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="5.0.9" PrivateAssets="all" />
-    <PackageReference Include="System.Net.Http.Json" Version="5.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\BlazorDB.UI\BlazorDB.UI.csproj" />
-    <ProjectReference Include="..\BlazorDB\BlazorDB.csproj" />
-  </ItemGroup>
-
-</Project>
-```
-How does this work?  There's no code?
-
-The all important bit is the definition of the root component in `Main`.  This creates the dependancy links so all the necessary project DLLs get compiled into the WASM code base.
-
-`<StaticWebAssetBasePath>` sets the subdirectory the WASM code base is available through in the compiled code.  The image below shows the browser Filesystem for the running WASM SPA.
-
-![WASM Page Filesystem](/siteimages/Articles/DB-Primer/Wasm-Page-Filesystem.png)
-
-
 ## BlazorDB.Data
 
 We need a new data broker to handle API requests from the WASM SPA.  This is where our design starts to come into play.  The new `APIDataBroker` simply replaces the `ServerDataBroker` in the WASM SPA Services Container.  The `DataConnector` doesn't need to know that the dat broker has changed.  It simply gets handed a class that implements `IDataBroker` and has a `SelectAllRecordsAsync<TRecord>()` method it can call. 
@@ -177,13 +102,13 @@ The diagram below shows the Services setup for the two versions of the SPA.
 Add an `APIDataBroker` class to the *Brokers* folder.
 
 ```csharp
-using BlazorDB.Core;
+using Blazr.Primer.Core;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 
-namespace BlazorDB.Data
+namespace Blazr.Primer.Data
 {
     public class APIDataBroker : DataBroker, IDataBroker
     {
@@ -206,7 +131,7 @@ This is a generic data broker.  As long as we stick to naming convertions - cont
 1. `GetRecordName` gets the record class name.
 2. The service gets the `HttpClient` registered in the Services container.
 
-## BlazorDB
+## Blazr.Primer
 
 ### ServiceCollectionExtensions
 
@@ -220,6 +145,105 @@ Update `AddWASMApplicationServices` to include adding the `APIDataBroker` as the
         return services;
     }
 ```
+
+## BlazorDB.WASM
+
+This project builds the WASM code and associated configuration and JS files.
+
+Remove except *program.cs*.
+
+### Project file
+
+```xml
+The project file should look like this:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <StaticWebAssetBasePath>wasm</StaticWebAssetBasePath>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+    <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="5.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="5.0.9" PrivateAssets="all" />
+    <PackageReference Include="System.Net.Http.Json" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.UI\Blazr.Primer.UI.csproj" />
+    <ProjectReference Include="..\Blazr.Primer\Blazr.Primer.csproj" />
+  </ItemGroup>
+
+</Project>
+```
+
+### Program.cs
+
+```csharp
+using Blazr.Primer.SPA;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Net.Http;
+using System.Threading.Tasks;
+
+namespace Blazr.Primer.WASM
+{
+    public class Program
+    {
+        public static async Task Main(string[] args)
+        {
+            var builder = WebAssemblyHostBuilder.CreateDefault(args);
+            builder.RootComponents.Add<Blazr.Primer.UI.Components.App>("#app");
+
+            builder.Services.AddWASMApplicationServices();
+            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+
+            await builder.Build().RunAsync();
+        }
+    }
+}
+```
+
+1. Sets the root component to `Blazr.Primer.UI.App` - the same `App` as used by the Server project.
+2. Adds the services defined in the *BlazorDB* `ServiceCollectionExtensions`.
+3. Adds a `HttpClient` service to make API calls.
+
+### Project File
+
+The project file should look like this:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <StaticWebAssetBasePath>wasm</StaticWebAssetBasePath>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+    <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="5.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="5.0.9" PrivateAssets="all" />
+    <PackageReference Include="System.Net.Http.Json" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.UI\Blazr.Primer.UI.csproj" />
+    <ProjectReference Include="..\Blazr.Primer\Blazr.Primer.csproj" />
+  </ItemGroup>
+
+</Project>
+```
+
+How does this work?  There's no code?
+
+The all important bit is the definition of the root component in `Main`.  This creates the dependancy links so all the necessary project DLLs get compiled into the WASM code base.
+
+`<StaticWebAssetBasePath>` sets the subdirectory the WASM code base is available through in the compiled code.  The image below shows the browser Filesystem for the running WASM SPA.
+
+![WASM Page Filesystem](/siteimages/Articles/DB-Primer/Wasm-Page-Filesystem.png)
 
 ## BlazorDB.UI
 
@@ -248,7 +272,7 @@ Update `MainLayout`.
 
 ```html
 @inherits LayoutComponentBase
-@namespace BlazorDB.UI.Components
+@namespace Blazr.Primer.UI.Components
 
 <div class="page">
     <div class="@_sidebarCss">
@@ -301,7 +325,7 @@ The component checks the URL and if it contains "wasm" it changes the sidebar co
 Update `NavMenu`
 
 ```html
-@namespace BlazorDB.UI.Components
+@namespace Blazr.Primer.UI.Components
 
 <div class="top-row pl-4 navbar navbar-dark">
     @*Change title*@
@@ -370,6 +394,33 @@ The component uses the URL to set the correct title and navigation options for W
 
 
 ## BlazorDB.Web
+
+### Project File
+
+The project file should look like this:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="5.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Blazr.Primer.Controllers\Blazr.Primer.Controllers.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.Core\Blazr.Primer.Core.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.Data\Blazr.Primer.Data.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.WASM\Blazr.Primer.WASM.csproj" />
+    <ProjectReference Include="..\Blazr.Primer\Blazr.Primer.csproj" />
+    <ProjectReference Include="..\Blazr.Primer.UI\Blazr.Primer.UI.csproj" />
+  </ItemGroup>
+
+</Project>
+```
 
 ### _WASM.cshtml
 
