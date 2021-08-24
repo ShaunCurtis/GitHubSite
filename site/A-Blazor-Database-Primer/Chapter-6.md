@@ -109,7 +109,26 @@ Throughout this set of articles the following nomenclature is used:
 3. **Form** is a high level component that does a "unit of work" - display a list of records, edit a record, enter out user information.  Forms are built from controls, not markup.  The WeatherForecast list is a form.
 4. **Control** is a low level component that builds out the html markup.  Controls can contains controls.  A row component in the WeatherForecast list is a control.
 
-## Base Controls and Utilities
+## Blazr.Primer.UI
+
+### Imports
+
+Update `Imports.razor
+```
+@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+@using Blazr.Primer.UI.Components
+@using Blazr.Primer.Core
+@using Blazr.Primer.UI.Components
+@using Blazr.Primer.UI.Forms
+```
+
+### Base Controls and Utilities
 
 We need a base UI class to implement some common functionality:
 
@@ -118,7 +137,7 @@ using Microsoft.AspNetCore.Components;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Blazr.UIComponents
+namespace Blazr.Primer.UI.Components
 {
     public abstract class UIComponentBase : ComponentBase
     {
@@ -150,19 +169,19 @@ namespace Blazr.UIComponents
 4. `UnwantedAttributes` lets you define a list of attributes you want to remove from the attribute list.  If you define your own `class` and want to discard any `class` component specified `class`, add `class` to the `UnwantedAttributes` list.
 5. `SplatterAttributes` are the `UserAttributes` minus the `UnwantedAttributes`.  We'll see it in use later.
 
-### CSSBuilder
+#### CSSBuilder
 
 A common task in a UI component is building the Css class.
 
 `CSSBuilder` uses the builder pattern to collect and then output a class string.
 
 ```csharp
-// File: BlazorDB.UI/Utils
+// File: Blazr.Primer.UI.Components/Component/Base/CSSBuilder.cs
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 
-namespace BlazorDB.UI
+namespace Blazr.Primer.UI.Components
 {
     public class CSSBuilder
     {
@@ -225,9 +244,9 @@ namespace BlazorDB.UI
     }
 }
 ```
-## List Components
+### List Components
 
-### UIListColumn
+#### UIListColumn
 
 `UIListColumn` builds out the header and data rows.
 1. If `IsHeader` is cascaded and `true` it builds the header row.
@@ -235,10 +254,11 @@ namespace BlazorDB.UI
 3. With no overrides, it builds out a standard `td` Column.
 
 ```csharp
-// File: BlazorDB.U/Components/ListControls/UIListColumn.razor.cs
+// File: Blazr.Primer.UI.Components/Components/ListControls/UIListColumn.razor.cs
 using Microsoft.AspNetCore.Components;
+using System.Collections.Generic;
 
-namespace BlazorDB.UI.Components
+namespace Blazr.Primer.UI.Components
 {
     public partial class UIListColumn : UIComponentBase
     {
@@ -261,9 +281,9 @@ namespace BlazorDB.UI.Components
 ```
 
 ```html
-// File: BlazorDB.U/Components/ListControls/UIistColumn.razor
-@namespace BlazorDB.UI.Components
-@inherits BlazorDB.UI.Components.UIComponentBase
+// File: Blazr.Primer.UI.Components/Components/ListControls/UIistColumn.razor
+@namespace Blazr.Primer.UI.Components
+@inherits UIComponentBase
 
 @if (this.IsHeader)
 {
@@ -290,7 +310,7 @@ else
 ```
 
 ```css
-// File: BlazorDB.U/Components/ListControls/UIistColumn.razor.css
+// File: Blazr.Primer.UI.Components/Components/ListControls/UIistColumn.razor.css
 .data-column {
     max-width: 30%;
 }
@@ -316,7 +336,7 @@ else
 }
 ```
 
-### UIListControl
+#### UIListControl
 
 `UIListControl` builds out the table framework.
 
@@ -324,29 +344,13 @@ else
 2. The builder uses the `RowTemplate` to build out the header by cascading `IsHeader` to the template.  It passes the `RowTemplate` a default instance of `TRecord`.
 3. Data is only displayed when `IsLoaded` is true.
 
-```csharp
-// File: BlazorDB.U/Components/ListControls/UIListControl.razor.cs
-using Microsoft.AspNetCore.Components;
-using System.Collections.Generic;
-
-namespace BlazorDB.UI.Components
-{
-    public partial class UIListControl<TRecord> : UIComponentBase
-    {
-        [Parameter] public bool IsLoaded { get; set; }
-        [Parameter] public RenderFragment<TRecord> RowTemplate { get; set; }
-        [Parameter] public IEnumerable<TRecord> Records { get; set; }
-    }
-}
-```
-
 ```html
-// File: BlazorDB.U/Components/ListControls/UIListControl.razor
-namespace BlazorDB.UI.Components
-@inherits BlazorDB.UI.Components.UIComponentBase
+// File: Blazr.Primer.UI.Components/Components/ListControls/UIListControl.razor
+@namespace Blazr.Primer.UI.Components
+@inherits UIComponentBase
 @typeparam TRecord
 
-@if (this.IsLoaded)
+@if (this.IsLoaded && this.HasRecords )
 {
     <table @attributes="this.SplatterAttributes">
         <thead>
@@ -366,15 +370,27 @@ namespace BlazorDB.UI.Components
         </tbody>
     </table>
 }
+else if (this.IsLoaded)
+{
+    <div class="alert alert-warning">
+        No Records to Display
+    </div>
+}
 else
 {
     <div class="m-2 p-2">Loading...</div>
 }
+@code {
+    [Parameter] public bool IsLoaded { get; set; }
+    [Parameter] public bool HasRecords { get; set; }
+    [Parameter] public RenderFragment<TRecord> RowTemplate { get; set; }
+    [Parameter] public IEnumerable<TRecord> Records { get; set; }
+}
 ```
 
-## Form and RouteView Components
+### Form and RouteView Components
 
-### WeatherForecastListForm
+#### WeatherForecastListForm
 
 `WeatherForecastListForm` is the form for displaying `WeatherForecasts`.
 
@@ -383,10 +399,10 @@ The form:
 2. Uses the `UIListControl` and `UIListColumn` components to define the list.
 
 ```html
-\\ File: BlazorDB.UI/Forms/WeatherForecast/WeatherForecastListForm.razor
-@namespace BlazorDB.UI.Forms
+\\ File: Blazr.Primer.UI/Forms/WeatherForecast/WeatherForecastListForm.razor
+@namespace Blazr.Primer.UI.Forms
 
-<UIListControl TRecord="WeatherForecast" Records="this.ViewService.Records" IsLoaded="this.ViewService.HasRecords" class="table">
+<UIListControl TRecord="WeatherForecast" Records="this.ViewService.Records" IsLoaded="this.ViewService.HasRecordList" HasRecords="this.ViewService.HasRecords" class="table">
     <RowTemplate>
         <UIListColumn HeaderTitle="Date">@context.Date.ToShortDateString()</UIListColumn>
         <UIListColumn HeaderTitle="Temp &deg; C">@context.TemperatureC</UIListColumn>
@@ -395,8 +411,7 @@ The form:
         <UIListColumn HeaderTitle="Detail" IsMaxColumn="true">@context.Name</UIListColumn>
     </RowTemplate>
 </UIListControl>
-```
-```html
+
 @code {
     [Inject] WeatherForecastViewService ViewService { get; set; }
 
@@ -437,22 +452,23 @@ Add a link to NavMenu
 
 ## Testing
 
-We use **bUnit** to test components.  It runs the component in a Renderer environment anf gives us access to interact with it, and examine the rendered DOM.
+We use **bUnit** to test components.  It runs the component in a Renderer environment and gives us access to interact with it, and examine the rendered DOM.
 
 Add folder *Components* to *BlazorDB.Test* and add a `WeatherForcastFormTests` class.
 
 See the inline comments for details.
 
 ```csharp
-using AngleSharp.Html.Dom;
-using BlazorDB.Core;
-using BlazorDB.UI.Forms;
+sing AngleSharp.Html.Dom;
+using Blazr.Primer.Core;
+using Blazr.Primer.Test;
+using Blazr.Primer.UI.Forms;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Xunit;
 
-namespace BlazorDb.Component.Tests
+namespace Blazr.Primer.Component.Tests
 {
     public class WeatherForecastFormTests
     {
@@ -463,13 +479,13 @@ namespace BlazorDb.Component.Tests
             // define : Set up a fixed size record table
             var rowsToTest = 10;
             // Gets a List of WeatherForecasts
-            var dataRows = WeatherForcastUtils.CreateRandomWeatherForecastList(rowsToTest);
+            var dataRows = WeatherForecastHelper.CreateRandomWeatherForecastList(rowsToTest);
             // Mocks a IDataConnector
             var dataConnectorMock = new Mock<IDataConnector>();
             // Sets up the Mock to reply to GetRecordsAsync with out datarows
             dataConnectorMock.Setup(item =>
                 item.GetRecordsAsync<WeatherForecast>())
-               .Returns(WeatherForcastUtils.CreateWeatherForecastListAsync(dataRows));
+               .Returns(WeatherForecastHelper.CreateWeatherForecastListAsync(dataRows));
 
             // Sets up Test Context to run our component in
             using var ctx = new TestContext();
@@ -515,6 +531,38 @@ namespace BlazorDb.Component.Tests
                 // Check the fifth cell contains the datarow Name value
                 Assert.True(this.GetCellContent(rows[row].Cells[4]).Equals(dataRows[row].Name));
             }
+        }
+
+        [Fact]
+        public void WeatherForcastListFormShouldDisplayNoDataRows()
+        {
+            // define : Set up a fixed size record table
+            var rowsToTest = 0;
+            // Gets a List of WeatherForecasts
+            var dataRows = WeatherForecastHelper.CreateRandomWeatherForecastList(rowsToTest);
+            // Mocks a IDataConnector
+            var dataConnectorMock = new Mock<IDataConnector>();
+            // Sets up the Mock to reply to GetRecordsAsync with out datarows
+            dataConnectorMock.Setup(item =>
+                item.GetRecordsAsync<WeatherForecast>())
+               .Returns(WeatherForecastHelper.CreateWeatherForecastListAsync(dataRows));
+
+            // Sets up Test Context to run our component in
+            using var ctx = new TestContext();
+            // Adds the Mock IDataConnector
+            ctx.Services.AddSingleton<IDataConnector>(dataConnectorMock.Object);
+            // Adds a WeatherForecatViewService - this will get the mock IDataConnector injected when it get instanciated.
+            ctx.Services.AddSingleton<WeatherForecastViewService>();
+
+
+            // Act: 
+            // Renders the WeatherForecastListForm component and gets the html DOM
+            var cut = ctx.RenderComponent<WeatherForecastListForm>();
+
+            // Assert:
+            // Get the root node 
+            var content = cut.Nodes[0];
+            Assert.Contains("No Records to Display", content.TextContent.ToString());
         }
 
         private string GetCellContent(IHtmlTableCellElement cell)

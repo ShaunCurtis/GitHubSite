@@ -16,16 +16,16 @@ As we start to add more functionality to the List Form we need to extract the co
 
 ### ListFormBase
 
-Add a *BaseForms* folder to *BlazorDB.UI/Forms*.
+Add a *BaseForms* folder to *Blazr.Primer.UI/Forms*.
 
 Add a `ListFormBase` class.  This is the initial code:
 
 ```csharp
-using BlazorDB.Core;
+using Blazr.Primer.Core;
 using Microsoft.AspNetCore.Components;
 using System.Threading.Tasks;
 
-namespace BlazorDB.UI.Forms
+namespace Blazr.Primer.UI.Forms
 {
     public abstract class ListFormBase<TRecord> : ComponentBase
         where TRecord : class, IRecord, new()
@@ -58,7 +58,7 @@ namespace BlazorDB.UI.Forms
 Modify `WeatherForecastListForm` to inherit from `ListFormBase` and implement `LoadViewService`:
 
 ```csharp
-@namespace BlazorDB.UI.Forms
+@namespace Blazr.Primer.UI.Forms
 @inherits ListFormBase<WeatherForecast>
 
 .....
@@ -84,7 +84,7 @@ We will need a full pager class later in this chapter.  For now we define a simp
 
 ```csharp
 // Directory : BlazorDB.Core/Data
-namespace BlazorDB.Core.Data
+namespace Blazr.Primer.Core.Data
 {
     public class RecordPagingData
     {
@@ -259,6 +259,17 @@ public async void DataConnectorShouldGetPagedWeatherForecastsAsync(int noOfRecor
     dataBrokerMock.Verify(broker => broker.SelectPagedRecordsAsync<WeatherForecast>(pagingData), Times.Once);
     dataBrokerMock.VerifyNoOtherCalls();
 }
+```
+
+Update `WeatherForecastHelper`
+
+```csharp
+....
+public static ValueTask<List<WeatherForecast>> GetPagedWeatherForecastListAsync(List<WeatherForecast> list, RecordPagingData pagingData)
+    => ValueTask.FromResult(list
+        .Skip(pagingData.StartRecord)
+        .Take(pagingData.PageSize)
+        .ToList());
 ```
 
 The Tests:

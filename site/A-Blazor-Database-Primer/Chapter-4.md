@@ -96,7 +96,7 @@ Update `FetchData` in *Blazr.Primer.Ui/RouteViews*.
 
 <p>This component demonstrates fetching data from a service.</p>
 
-@if (ViewService.HasRecords)
+@if (!ViewService.HasRecords)
 {
     <p><em>Loading...</em></p>
 }

@@ -173,7 +173,9 @@ namespace Blazr.Primer.Core
             }
         }
 
-        public bool HasRecords => Records is not null;
+        public bool HasRecordList => Records is not null;
+
+        public bool HasRecords => this.RecordCount > 0;
 
         public int RecordCount => this.Records?.Count ?? 0;
 

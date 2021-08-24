@@ -16,12 +16,12 @@ In this chapter we'll look at how to build and run Server and WASM SPA side-by-s
 
 We need to add two new projects to the solution:
 
-1. *BlazorDB.WASM* using the *Blazor WebAssembly App* template.
-2. *BlazorDB.Controllers* using the *ASP.NET Core Web App* template.
+1. *Blazr.Primer.WASM* using the *Blazor WebAssembly App* template.
+2. *Blazr.Primer.Controllers* using the *ASP.NET Core Web App* template.
 
 Clear both projects down to only *program.cs*.
 
-## BlazorDB.Controllers
+## Blazr.Primer.Controllers
 
 This project holds the API controllers.  It uses the `Microsoft.NET.Sdk.Web` Framework to implement controllers.
 
@@ -80,7 +80,7 @@ namespace Blazr.Primer.Controllers
 A web project must have a `Main`.  It's not used, so we define an empty one.
 
 ```csharp
-namespace BlazorDB.Controllers
+namespace Blazr.Primer.Controllers
 {
     public class Program
     {
@@ -446,7 +446,13 @@ Add a *_WASM.cshtml* file to the *Pages* folder.  This is the launch page for th
     <link href="/BlazorDB.Web.styles.css" rel="stylesheet" />
 </head>
 <body>
-    <div id="app">Loading...</div>
+
+<div id="app">
+        <div class="mt-4" style="margin-right:auto; margin-left:auto; width:100%;">
+            <div class="loader"></div>
+            <div style="width:100%; text-align:center;"><h4>Web Application Loading</h4></div>
+        </div>
+    </div>
 
     <div id="blazor-error-ui">
         An unhandled error has occurred.
@@ -456,6 +462,60 @@ Add a *_WASM.cshtml* file to the *Pages* folder.  This is the launch page for th
     <script src="/wasm/_framework/blazor.webassembly.js"></script>
 </body>
 </html>
+```
+
+### Site.css
+
+Add the following css to *Blazr.Primer.Web/wwwroot/css/site.css*.  It formats the Css in `<div id="app">` to give a pretty spinner.
+
+```css
+.page-loader {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    width: 150px;
+    height: 150px;
+    margin: -75px 0 0 -75px;
+    border: 16px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 16px solid #3498db;
+    width: 120px;
+    height: 120px;
+    -webkit-animation: spin 2s linear infinite;
+    animation: spin 2s linear infinite;
+}
+
+.loader {
+    border: 16px solid #f3f3f3;
+    /* Light grey */
+    border-top: 16px solid #3498db;
+    /* Blue */
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@-webkit-keyframes spin {
+    0% {
+        -webkit-transform: rotate(0deg);
+    }
+    100% {
+        -webkit-transform: rotate(360deg);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
 ```
 
 ### Startup
