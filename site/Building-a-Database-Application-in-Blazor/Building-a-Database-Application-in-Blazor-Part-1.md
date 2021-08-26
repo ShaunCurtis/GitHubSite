@@ -10,12 +10,12 @@ published: 2020-10-01
 # Part 1 - Project Structure and Framework
 
 ::: danger
-This set of articles are currently being updated
+These articles are currently being updated
 :::
 
 This set of articles describes a framework for building and structuring Database Applications in Blazor.
 
-It's just a framework.  I make no recommendations: use it or abuse it.  It's what I use.  It's lightly opinionated: using out-of-the-box Blazor/Razor/DotNetCore systems and toolkits whereever possible.  The CSS framework is a lightly customized version of BootStrap. 
+It's just a framework.  I make no recommendations: use it or abuse it.  It's what I use.  It's lightly opinionated: using out-of-the-box Blazor/Razor/DotNetCore systems and toolkits wherever possible.  The CSS framework is a lightly customized version of BootStrap. 
  
 There are five articles describing various aspects of the framework and coding patterns used:
 
@@ -28,7 +28,7 @@ There are five articles describing various aspects of the framework and coding p
 The articles have changed drastically since their original release:
 
 1. The whole framework is less opinionated.  I've dropped many of the more radical approaches to some issues in Blazor/SPAs.
-2. The libraries have been re-organised as my understanding has grown on how to make Server and WASM projects co-exist.
+2. The libraries have been re-organised so Server and WASM projects can co-exist.
 2. Everything has been updated to Net5.
 3. The Repo home has moved.
 5. Server and WASM SPAs are now hosted and run from the same site.
@@ -51,36 +51,38 @@ The demo site has changed now the Server and WASM have been combined.  The site 
 
 The high level application design looks like this:
 
-![Basic Application Design](/siteimages/articles/database/basic-app-design.png)
+![Basic Application Design](/siteimages/Articles/Database/Basic-App-Design.png)
 
-This may look too complex for a simple application, we can just grab the data from the datasource in the display page.  Up to you, but you (or someone else who has to maintain the code) will almost certainly regret that decision at some point.
+This may look too complex for a simple application, why not just grab the data from the datasource in the display page.  Up to you, but you (or someone else who has to maintain the code) will almost certainly regret that decision at some point.
 
-*UI* and *Data* Domains are pretty self explanatory, but what exactly is the *Core Domain*.  It's all the code that makes your application unique.  It's the business logic that processes the raw data from the data store and the logic that takes user input are stores sensible data from it.  The point is you should de-couple all this code from the data source and the UI.  Get it right and you can change the data store or the front end with little or no impact on the core application.
+*UI* and *Data* Domains are pretty self explanatory, but what exactly is the *Core Domain*?
+
+It's all the code that makes your application unique.  It's the business logic that processes the raw data from the data store and the logic that takes user input and stores sensible data from it.  The point is you should de-couple all this code from the data source and the UI.  Get it right and you can change the data store or the front end with little or no impact on the core application.
 
 ## Solution Structure
 
-The application is configured to build and deploy both Server and WASM versions of the SPA, and host both on the same web site.  The solution is split into a number of projects based on:
+The application is configured to build and deploy both Server and WASM versions of the SPA, and host both on the same web site.  The solution is broken down into a number of projects based on:
 
-1. Split between generic library code that can be across multiple solutions.
+1. Split between generic library code that can be across multiple solutions, and application specific code.
 2. Split to ensure separation of concerns.  The core application code in *Blazr.Database.Core* only has a dependancy on the *Blazr.SPA* library.
-3. Split because of incompatibles bewteen project types.  A WASM project can't depend or be compiled with a *Microsoft.ASPNetCore.App* framework project.  API controllers need to be compiled within the *Microsoft.ASPNetCore.App* framework.
+3. Split because of incompatibles between project types.  A WASM project can't depend or be compiled with a *Microsoft.ASPNetCore.App* framework project.  API controllers need to be compiled within the *Microsoft.ASPNetCore.App* framework.
 
 The result are a set of projects as follows:
 
-1. *Razr.SPA* - core multi application re-usable code.
-2. *Razr.UIComponents* - core multi application re-usable UI components.
+1. *Razr.SPA* - cross application re-usable code.
+2. *Razr.UIComponents* - cross application re-usable UI components.
 3. *Razr.Database.Core* - Core Domain code specific to the application.
 4. *Razr.Database.Data* - Data Domain code specific to the application.
 5. *Razr.Database.UI* - UI Domain -  components/forms/pages - specific to the application.
 6. *Razr.Database.Controllers* - API controllers specific to the application.
 7. *Razr.Database* - Blazor project to buid the WASM application code.
-8. *Razr.Database.Web* - web server applicaton.
+8. *Razr.Database.Web* - the web server applicaton.
 
-![Project Dependancies](/siteimages/articles/database/project-dependencies.png)
+![Project Dependancies](/siteimages/Articles/Database/Project-dependencies.png)
 
 There are also testing projects currently being developed.
  
-You may have noticed at this point that there's no Blazor Server project.  You don't need one.
+You may have noticed at this point that there's no Blazor Server project.  You don't need one, you will see why later.
 
 ## Libraries
 
@@ -97,7 +99,7 @@ All the code in *Razor.UIComponents* is in the UI Domain.
 
 ## Data Classes
 
-All the data classes reside in the Core Domain and are thus in the Core project. The database/datasets are specific to the project so the Data Interface and the Core Application datasets match.  In other projects you may need a set Data Domain datasets and a mapping processes to build the Core Domain data classes.
+All the data classes reside in the Core Domain and are thus in the *Razr.Database.Core* project. The database/datasets are specific to the project so the Data Interface and the Core Application datasets match.  In other projects you may need a set Data Domain datasets and a mapping processes to build the Core Domain data classes.
 
 Data is divided into three object types:
 
@@ -105,7 +107,7 @@ Data is divided into three object types:
 
 2. **Compound Records** - these are immutable records based on a Model Record, but contain processed data and/or data from other model records associated with the main model record.
 
-3. **Edit Model Classes** - these are editable versions of model records.  They contain logic to track, validate and build saveable model records.  All edit classes implement `IEditRecord`, and optionally `IValidation` interfaces
+3. **Edit Model Classes** - these are editable versions of model records.  They contain logic to track, validate and build model records to save.  All edit classes implement `IEditRecord`, and optionally `IValidation` interfaces
 
 ### The Data Access and Core Projects
 
@@ -116,7 +118,7 @@ The design:
 3. Make the domains testable.
 4. Use naming conventions to provide abstraction.  Model classes have the same names as `DbSets` or `DataSets`.
 
-![Data Pipeline](/siteimages/articles/database/data-pipeline.png)
+![Data Pipeline](/siteimages/articles/database/Data-Pipeline.png)
 
 #### Data Stores
 
