@@ -8,8 +8,8 @@ published: 2020-10-03
 
 # Part 3 - View Components - CRUD Edit and View Operations in the UI
 
-::: danger
-This set of articles are currently being updated
+::: warning
+These articles are currently being updated.  Most of the text and code is correct, but...
 :::
 
 ## Introduction

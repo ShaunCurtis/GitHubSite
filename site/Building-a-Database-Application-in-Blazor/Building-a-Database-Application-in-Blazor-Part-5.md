@@ -9,8 +9,8 @@ published: 2020-10-03
 # Building a Database Application in Blazor 
 ## Part 5 - View Components - CRUD List Operations in the UI
 
-::: danger
-This set of articles are currently being updated
+::: warning
+These articles are currently being updated.  Most of the text and code is correct, but...
 :::
 
 ## Introduction

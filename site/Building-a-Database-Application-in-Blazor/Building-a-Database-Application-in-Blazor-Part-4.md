@@ -9,8 +9,8 @@ published: 2020-10-03
 # Building a Database Application in Blazor 
 ## Part 4 - UI Components
 
-::: danger
-This set of articles are currently being updated
+::: warning
+These articles are currently being updated.  Most of the text and code is correct, but...
 :::
 
 ## Introduction

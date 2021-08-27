@@ -8,8 +8,8 @@ published: 2020-10-03
 
 # Part 2 - Services - Building the CRUD Data Layers
 
-::: danger
-This set of articles are currently being updated
+::: warning
+These articles are currently being updated.  Most of the text and code is correct, but...
 :::
 
 This the second article in a series on Building Blazor Database Applications.  It describes the Data and Core Domain boilerplate code used to make deploying application specific data services simple.  It is a total rewrite from earlier releases.

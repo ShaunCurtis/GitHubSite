@@ -9,8 +9,8 @@ published: 2020-10-01
 # Building a Database Application in Blazor 
 # Part 1 - Project Structure and Framework
 
-::: danger
-These articles are currently being updated
+::: warning
+These articles are currently being updated.  Most of the text and code is correct, but...
 :::
 
 This set of articles describes a framework for building and structuring Database Applications in Blazor.
