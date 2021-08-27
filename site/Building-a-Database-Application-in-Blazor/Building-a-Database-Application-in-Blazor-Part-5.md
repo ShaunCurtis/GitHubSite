@@ -57,12 +57,12 @@ public abstract class ListFormBase<TRecord> : ComponentBase, IDisposable
     [Parameter] public EventCallback ExitAction { get; set; }
 
     [Inject] protected NavigationManager NavManager { get; set; }
+    [Inject] protected EditStateService EditStateService { get; set; }
 
     protected IModelViewService<TRecord> Service { get; set; }
     protected bool IsLoaded => this.Service?.HasRecords ?? false;
     protected ComponentState LoadState => IsLoaded ? ComponentState.Loaded : ComponentState.Loading;
     protected bool HasService => this.Service != null;
-
     protected override async Task OnInitializedAsync()
     {
         if (HasService)
@@ -70,6 +70,12 @@ public abstract class ListFormBase<TRecord> : ComponentBase, IDisposable
             await this.Service.GetRecordsAsync();
             this.Service.ListHasChanged += OnListChanged;
         }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (this.EditStateService.IsDirty)
+            this.Edit((Guid)this.EditStateService.RecordID);
     }
 
     protected void OnListChanged(object sender, EventArgs e)
@@ -94,12 +100,13 @@ public abstract class ListFormBase<TRecord> : ComponentBase, IDisposable
 
     public void Dispose()
         => this.Service.ListHasChanged -= OnListChanged;
+
 }
 ```
 
 ### Paging and Sorting
 
-Paging and sorting is implemented by a `RecordPager` class that resides in the ControllerService.  There are UI components that interact with the `RecordPager`: `DataPagingControl` and `SortControl`.
+Paging and sorting is implemented by a `RecordPager` class that is part of the ViewService.  `DataPagingControl` and `SortControl` are UI components that interact with the `RecordPager`.
 
 You can see `DataPagingControl` in use in a list form - here in the left side of a button row at the bottom of the form
 
@@ -131,110 +138,107 @@ And `SortControl` in action in the header row of a list form.
 
 #### RecordPager
 
-The Controller Service holds the `RecordPager` instance used by list forms.  The code is self explanatory, providing the functionality for paging operations.  It's passed to the Data Service to retrieve the correct sorted page through the `RecordPagingData` class.
+The code is self explanatory, providing the functionality for paging operations.  The imnportant concept to understand is that internally page and block positions are tracked on zero based indexes, while what gets displayed is one based.  Page 0 internally is displayed as 1 to the user.
 
 ```csharp
-public class RecordPager
-{
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 25;
-    public int BlockSize { get; set; } = 10;
-    public int RecordCount { get; set; } = 0;
-
-    public string SortColumn
+    public class RecordPager
     {
-        get => (!string.IsNullOrWhiteSpace(_sortColumn)) ? _sortColumn : DefaultSortColumn;
-        set => _sortColumn = value;
-    }
+        public int DisplayPage => this.Page + 1;
+        public int DisplayLastPage => this.LastPage + 1;
+        public int DisplayLastBlock => this.LastBlock + 1;
+        public int DisplayStartBlockPage => this.StartBlockPage + 1;
+        public int DisplayEndBlockPage => this.EndBlockPage + 1;
 
-    private string _sortColumn = string.Empty;
-    public string DefaultSortColumn { get; set; } = "ID";
-    public bool SortDescending { get; set; }
+        public bool Enabled { get; set; }
+        public int Page { get; private set; } = 0;
+        public int RecordCount { get; set; } = 0;
+        public int PageSize { get; set; } = 10;
+        public int BlockSize { get; set; } = 5;
 
-    public RecordPager(int pageSize, int blockSize)
-    {
-        this.BlockSize = blockSize;
-        this.PageSize = pageSize;
-    }
+        public string DefaultSortColumn { get; set; } = "ID";
+        public bool Sort { get; set; }
+        public bool SortDescending { get; set; }
 
-    public event EventHandler PageChanged;
-
-    public int LastPage => (int)Math.Ceiling((RecordCount / PageSize) + 0.5);
-    public int LastBlock => (int)((LastPage / BlockSize) + 1.5);
-    public int CurrentBlock => (int)((Page / BlockSize) + 1.5);
-    public int StartBlockPage => ((CurrentBlock - 1) * BlockSize) + 1;
-    public int EndBlockPage => StartBlockPage + BlockSize;
-    public bool HasBlocks => ((RecordCount / (PageSize * BlockSize)) + 0.5) > 1;
-    public bool HasPagination => (RecordCount / PageSize) > 1;
-
-    public void ToPage(int page, bool forceUpdate = false)
-    {
-        if ((forceUpdate | !this.Page.Equals(page)) && page > 0)
+        public int Block
         {
-            this.Page = page;
-            this.PageChanged?.Invoke(this, EventArgs.Empty);
+            get
+            {
+                var block = (int)Math.Floor((Decimal)(this.Page / this.BlockSize));
+                return block < this.LastBlock ? block : LastBlock;
+            }
         }
-    }
 
-    public void NextPage()
-        => this.ToPage(this.Page + 1);
+        public int LastPage => ((int)Math.Floor((Decimal)((RecordCount - 1) / PageSize))) - 1;
+        public int LastBlock => (int)Math.Floor((Decimal)(this.LastPage / this.BlockSize));
+        public int StartBlockPage => (Block * BlockSize);
+        public int EndBlockPage => (StartBlockPage + (BlockSize - 1)) > LastPage ? LastPage : StartBlockPage + (BlockSize - 1);
+        public bool HasBlocks => this.LastPage > BlockSize;
+        public bool HasPagination => this.RecordCount > PageSize;
 
-    public void PreviousPage()
-                => this.ToPage(this.Page - 1);
-
-    public void ToStart()
-        => this.ToPage(1);
-
-    public void ToEnd()
-        => this.ToPage((int)Math.Ceiling((RecordCount / PageSize) + 0.5));
-
-    public void NextBlock()
-    {
-        if (CurrentBlock != LastBlock)
+        public string SortColumn
         {
-            var calcpage = (CurrentBlock * BlockSize) + 1;
-            this.Page = calcpage > LastPage ? LastPage : LastPage;
-            this.PageChanged?.Invoke(this, EventArgs.Empty);
+            get => (!string.IsNullOrWhiteSpace(_sortColumn)) ? _sortColumn : DefaultSortColumn;
+            set => _sortColumn = value;
         }
-    }
 
-    public void PreviousBlock()
-    {
-        if (CurrentBlock != 1)
+        private string _sortColumn = string.Empty;
+
+        public RecordPagingData PagingData => new RecordPagingData()
         {
-            this.Page = ((CurrentBlock - 2) * PageSize) + 1;
-            this.PageChanged?.Invoke(this, EventArgs.Empty);
+            Page = this.Page,
+            PageSize = this.PageSize,
+            Sort = this.Sort,
+            SortColumn = this.SortColumn,
+            SortDescending = this.SortDescending
+        };
+
+        public event EventHandler PageChanged;
+
+        public bool ToPage(int page, bool forceUpdate = false)
+        {
+            var move = (forceUpdate | !this.Page.Equals(page)) && page >= 0;
+            if (move)
+            {
+                this.Page = page;
+                this.PageChanged?.Invoke(this, EventArgs.Empty);
+            }
+            return move;
         }
+
+        public bool PageMove(int pages)
+        {
+            var move = this.Page + pages <= this.LastPage && this.Page + pages >= 0;
+            if (move)
+                this.ToPage(this.Page + pages);
+            return move;
+        }
+
+        public bool BlockMove(int blocks)
+        {
+            var move = this.Block + blocks <= this.LastBlock && this.Block + blocks >= 0;
+            if (move)
+                this.ToPage((this.Block + blocks) * BlockSize);
+            return move;
+        }
+
+        public void NotifySortingChanged()
+           => this.ToPage(1, true);
     }
-
-    public void NotifySortingChanged()
-        => this.ToPage(1, true);
-
-    public RecordPagingData GetData => new RecordPagingData()
-    {
-        Page = this.Page,
-        PageSize = this.PageSize,
-        BlockSize = this.BlockSize,
-        RecordCount = this.RecordCount,
-        SortColumn = this.SortColumn,
-        SortDescending = this.SortDescending
-    };
-}
 ```
 
 #### RecordPagingData
 
-This is the class used to pass data into the dats services.  This has to be passed via json though the api so "keep it simple".
+This is the class used to pass data into the dats services.  This has to be passed via json though the api so "keep it simple". Again it's zero based indexing.
 
 ```csharp
     public class RecordPagingData
     {
-        public int Page { get; set; } = 1;
+        public int Page { get; set; } = 0;
         public int PageSize { get; set; } = 25;
-        public int BlockSize { get; set; } = 10;
-        public int RecordCount { get; set; } = 0;
         public string SortColumn { get; set; } = string.Empty;
+        public bool Sort { get; set; } = false;
         public bool SortDescending { get; set; } = false;
+        public int StartRecord => this.Page * this.PageSize;
     }
 ```
 
@@ -243,30 +247,31 @@ This is the class used to pass data into the dats services.  This has to be pass
 The code again is self-explanatory, building out a Bootstrap ButtonGroup.  I've kept away from using icons, you can if you wish.
 
 ```html
-@namespace Blazor.SPA.Components
+@namespace Blazr.SPA.Components
 
 @if (this.hasPagination)
 {
     <nav aria-label="...">
         <ul class="pagination">
             <li class="page-item">
-                <a class="page-link" @onclick="() => this.RecordPager.ToStart()">&vert;&lt;</a>
+                <a class="page-link cursor-hand" @onclick="() => this.RecordPager.ToPage(0)">&vert;&lt;</a>
             </li>
             @if (this.RecordPager.HasBlocks)
             {
                 <li class="page-item">
-                    <a class="page-link" @onclick="() => this.RecordPager.PreviousBlock()">&lt;&lt;</a>
+                    <a class="page-link cursor-hand" @onclick="() => this.RecordPager.BlockMove(-1)">&lt;&lt;</a>
                 </li>
             }
-            @for (var i = this.RecordPager.StartBlockPage; i < this.RecordPager.EndBlockPage; i++)
+            @for (var i = this.RecordPager.DisplayStartBlockPage; i <= this.RecordPager.DisplayEndBlockPage; i++)
             {
-                var pageNo = i;
-                @if (pageNo > this.RecordPager.LastPage) break;
-                @if (pageNo == this.RecordPager.Page)
+                var displayPageNo = i;
+                var pageNo = i - 1;
+                @if (displayPageNo > this.RecordPager.DisplayLastPage) break;
+                @if (displayPageNo == this.RecordPager.DisplayPage)
                 {
                     <li class="page-item active">
-                        <span class="page-link">
-                            @pageNo
+                        <span class="page-link cursor-hand">
+                            @displayPageNo
                             <span class="sr-only">(current)</span>
                         </span>
                     </li>
@@ -274,7 +279,7 @@ The code again is self-explanatory, building out a Bootstrap ButtonGroup.  I've 
                 else
                 {
                     <li class="page-item">
-                        <a class="page-link" @onclick="() => this.RecordPager.ToPage(pageNo)">@pageNo</a>
+                        <a class="page-link cursor-hand" @onclick="() => this.RecordPager.ToPage(pageNo)">@displayPageNo</a>
                     </li>
                 }
 
@@ -282,11 +287,11 @@ The code again is self-explanatory, building out a Bootstrap ButtonGroup.  I've 
             @if (this.RecordPager.HasBlocks)
             {
                 <li class="page-item">
-                    <a class="page-link" @onclick="() => this.RecordPager.NextBlock()">&gt;&gt;</a>
+                    <a class="page-link cursor-hand" @onclick="() => this.RecordPager.BlockMove(1)">&gt;&gt;</a>
                 </li>
             }
             <li class="page-item">
-                <a class="page-link" @onclick="() => this.RecordPager.ToEnd()">&gt;&vert;</a>
+                <a class="page-link cursor-hand" @onclick="() => this.RecordPager.ToPage(this.RecordPager.LastPage)">&gt;&vert;</a>
             </li>
         </ul>
     </nav>
@@ -355,52 +360,149 @@ The `SortControl` is used in a list header. It cascades itself and provides the 
 }
 ```
 
-#### UIDataTableHeaderColumn
+#### UIListColumn
 
-This is the UI control that builds out each header column in a list.  It builds out the razor and Css class for the header and notifies the captured SortControl on any mouse click events.
+This is the UI control that builds out either the header or data rows.
 
-```csharp
-@namespace Blazor.SPA.Components
-@inherits AppComponentBase
+```html
+@namespace Blazr.UIComponents
+@inherits UIComponentBase
 
-@if (_isSortField)
+@if (this.IsHeader)
 {
-    <th class="@this.CssClass" @attributes="this.SplatterAttributes" @onclick="SortClick">
-        <span class="@_iconclass"></span>
-        @this.ChildContent
+    <th class="@this.HeaderCSS">
+        @((MarkupString)this.HeaderTitle)
     </th>
+}
+else if (this.isMaxRowColumn)
+{
+    <td class="max-column" @attributes="this.SplatterAttributes">
+        <div class="grid-overflow">
+            <div class="grid-overflowinner">
+                @ChildContent
+            </div>
+        </div>
+    </td>
 }
 else
 {
-    <th class="@this.CssClass" @attributes="this.SplatterAttributes">
+    <td class="data-column" @attributes="this.SplatterAttributes">
         @this.ChildContent
-    </th>
+    </td>
 }
+```
+*UIListColumn.razor.cs*:
 
-@code {
+``` csharp
+using Blazr.SPA.Components;
+using Microsoft.AspNetCore.Components;
+using System.Collections.Generic;
 
-    [CascadingParameter] public SortControl SortControl { get; set; }
-    [Parameter] public string SortField { get; set; } = string.Empty;
-
-    private bool _hasSortControl => this.SortControl != null;
-    private bool _isSortField => !string.IsNullOrWhiteSpace(this.SortField);
-    private string _iconclass => _hasSortControl && _isSortField ? this.SortControl.GetIcon(SortField) : string.Empty;
-
-    private string CssClass => CSSBuilder.Class("grid-col")
-        .AddClass("cursor-hand", _isSortField)
-        .AddClassFromAttributes(this.UserAttributes)
-        .Build();
-
-    private void SortClick(MouseEventArgs e)
+namespace Blazr.UIComponents
+{
+    public partial class UIListColumn : UIComponentBase
     {
-        if (this.SortControl.SortColumm.Equals(this.SortField))
-            this.SortControl.NotifySortingDirectionChanged();
-        else
-            this.SortControl.NotifySortingChanged(this.SortField);
+        [CascadingParameter(Name = "IsHeader")] public bool IsHeader { get; set; }
+        [Parameter] public bool IsMaxColumn { get; set; }
+        [Parameter] public string HeaderTitle { get; set; }
+        [Parameter] public bool IsHeaderNoWrap { get; set; }
+
+        private bool isMaxRowColumn => IsMaxColumn && !this.IsHeader;
+        private bool isNormalRowColumn => !IsMaxColumn && !this.IsHeader;
+        protected override List<string> UnwantedAttributes { get; set; } = new List<string>() { "class" };
+
+        private string HeaderCSS
+            => CSSBuilder.Class()
+                .AddClass("header-column-nowrap", "header-column", IsHeaderNoWrap)
+                .AddClass("align-baseline")
+                .Build();
     }
 }
 ```
 
+*UIListColumn.razor.css*:
+
+```css
+.data-column {
+    max-width: 30%;
+}
+
+.max-column {
+    width: 50%;
+}
+
+.grid-overflow {
+    display: flex;
+}
+
+.grid-overflowinner {
+    flex: 1;
+    width: 1px;
+    overflow-x: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.header-column-nowrap {
+    white-space: nowrap;
+}
+```
+
+#### UIListControl
+
+This control builds out the list
+
+```html
+@namespace Blazr.UIComponents
+@inherits UIComponentBase
+@typeparam TRecord
+
+@if (this.LoadState == ComponentState.Loaded && this.HasRecords)
+{
+    <table @attributes="this.SplatterAttributes">
+        <thead>
+            <CascadingValue Name="IsHeader" Value="true">
+                <tr>
+                    @RowTemplate(default(TRecord))
+                </tr>
+            </CascadingValue>
+        </thead>
+        <tbody>
+            @foreach (var item in this.Records)
+            {
+                <tr>
+                    @RowTemplate(item)
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else if (this.LoadState == ComponentState.Loaded)
+{
+    <div class="alert alert-warning">
+        No Records to Display
+    </div>
+}
+else if (this.LoadState == ComponentState.Loading)
+{
+    <div class="m-2 p-2">Loading...</div>
+}
+else
+{
+    <div class="alert alert-danger">
+        Error Loading the List
+    </div>
+}
+```
+```csharp
+@code {
+    [Parameter] public ComponentState LoadState { get; set; }
+    [Parameter] public RenderFragment<TRecord> RowTemplate { get; set; }
+    [Parameter] public IEnumerable<TRecord> Records { get; set; }
+    private bool HasRecords => Records.Count() > 0;
+
+}
+```
 
 ### Weather Forecast List Forms
 
@@ -464,7 +566,7 @@ public partial class WeatherForecastListForm : ListFormBase<WeatherForecast>
 ```
 
 The razor markup.  Note:
-1. The `SortControl` in the header and the `UIDataTableHeaderColumn` components building the header with the sortable columns.
+1. The `SortControl` in the header and the `UIListColumn` components building the header with the sortable columns.
 2. The `DataPagingControl` in the botton button row linked to the `Service.RecordPager`.  Paging is event driven.  `DataPagingControl` paging requests are handled directly by `RecordPager` in the controller service.  Updates trigger a `ListChanged` event in the service which triggers a UI update in the List Form.
 3. The `BaseModalDialog` added if the Form is using Modal Dialogs.
 
@@ -474,44 +576,30 @@ The razor markup.  Note:
 
 <h1>Weather Forecasts</h1>
 
-<UILoader State="this.LoadState">
-    <UIDataTable TRecord="WeatherForecast" Records="this.ViewService.Records" class="table">
-        <Head>
-            <SortControl RecordPager="this.Service.RecordPager">
-                <UIDataTableHeaderColumn SortField="Date">Date</UIDataTableHeaderColumn>
-                <UIDataTableHeaderColumn SortField="TemperatureC">Temp. (C)</UIDataTableHeaderColumn>
-                <UIDataTableHeaderColumn>Temp. (F)</UIDataTableHeaderColumn>
-                <UIDataTableHeaderColumn SortField="Summary">Summary</UIDataTableHeaderColumn>
-                <UIDataTableHeaderColumn class="max-column">Description</UIDataTableHeaderColumn>
-                <UIDataTableHeaderColumn class="text-right">Actions</UIDataTableHeaderColumn>
-            </SortControl>
-        </Head>
-        <RowTemplate>
-            <UIDataTableRow>
-                <UIDataTableColumn> @context.Date.LocalDateTime.ToShortDateString()</UIDataTableColumn>
-                <UIDataTableColumn>@context.TemperatureC</UIDataTableColumn>
-                <UIDataTableColumn>@context.TemperatureF</UIDataTableColumn>
-                <UIDataTableColumn>@context.Summary</UIDataTableColumn>
-                <UIDataTableMaxColumn>@context.Description</UIDataTableMaxColumn>
-                <UIDataTableColumn class="text-right text-nowrap">
-                    <UIButton type="button" class="btn-sm btn-secondary" ClickEvent="() => this.View(context.ID)">View</UIButton>
-                    <UIButton type="button" class="btn-sm btn-primary" ClickEvent="() => this.Edit(context.ID)">Edit</UIButton>
-                </UIDataTableColumn>
-            </UIDataTableRow>
-        </RowTemplate>
-    </UIDataTable>
-    <UIContainer>
-        <UIFormRow>
-            <UIColumn Cols="8">
-                <DataPagingControl RecordPager="this.ViewService.RecordPager"></DataPagingControl>
-            </UIColumn>
-            <UIButtonColumn Cols="4">
-                <UIButton type="button" Show="true" class="btn-success" ClickEvent="() => this.New()">New Record</UIButton>
-                <UIButton type="button" class="btn-secondary" ClickEvent="this.Exit">Exit</UIButton>
-            </UIButtonColumn>
-        </UIFormRow>
-    </UIContainer>
-</UILoader>
+<UIListControl TRecord="WeatherForecast" Records="this.ViewService.Records" LoadState="this.LoadState" class="table">
+    <RowTemplate>
+        <UIListColumn HeaderTitle="Date">@context.Date.LocalDateTime.ToShortDateString()</UIListColumn>
+        <UIListColumn HeaderTitle="Temp &deg; C">@context.TemperatureC</UIListColumn>
+        <UIListColumn HeaderTitle="Temp &deg; F">@context.TemperatureF</UIListColumn>
+        <UIListColumn HeaderTitle="Summary">@context.Summary</UIListColumn>
+        <UIListColumn HeaderTitle="Detail" IsMaxColumn="true">@context.Description</UIListColumn>
+        <UIListColumn HeaderTitle="Edit/View">
+            <UIButton type="button" class="btn-sm btn-secondary" ClickEvent="() => this.View(context.ID)">View</UIButton>
+            <UIButton type="button" class="btn-sm btn-primary" ClickEvent="() => this.Edit(context.ID)">Edit</UIButton>
+        </UIListColumn>
+    </RowTemplate>
+</UIListControl>
+<UIContainer>
+    <UIFormRow>
+        <UIColumn Cols="8">
+            <DataPagingControl RecordPager="this.ViewService.RecordPager"></DataPagingControl>
+        </UIColumn>
+        <UIButtonColumn Cols="4">
+            <UIButton type="button" Show="true" class="btn-success" ClickEvent="() => this.New()">New Record</UIButton>
+            <UIButton type="button" class="btn-secondary" ClickEvent="this.Exit">Exit</UIButton>
+        </UIButtonColumn>
+    </UIFormRow>
+</UIContainer>
 @if (this.IsModal)
 {
     <BaseModalDialog @ref="this.Modal"></BaseModalDialog>

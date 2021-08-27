@@ -35,16 +35,16 @@ There's a SQL script in /SQL in the repository for building the database.  The a
 [You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
 
 The List Form
-![Weather Forecast Viewer](/siteimages/articles/database/fetchdata-list.png)
+![Weather Forecast Viewer](/siteimages/Articles/Database/FetchData-List.png)
 
 The Modal Viewer
-![Weather Forecast Viewer](/siteimages/articles/database/WeatherForecast-Viewer.png)
+![Weather Forecast Viewer](/siteimages/Articles/Database/WeatherForecast-Viewer.png)
 
 The Inline Editor
-![Weather Forecast Viewer](/siteimages/articles/database/WeatherForecast-Editor.png)
+![Weather Forecast Viewer](/siteimages/Articles/Database/WeatherForecast-Editor.png)
 
 Edit State Control
-![Weather Forecast Viewer](/siteimages/articles/database/Editor-dirty-exit.png)
+![Weather Forecast Viewer](/siteimages/Articles/Database/Editor-dirty-Exit.png)
 
 
 Several custom controls are used in the forms.  The detail on these is covered in separate articles:
