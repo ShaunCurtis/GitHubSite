@@ -28,11 +28,11 @@ I find it interesting that most programmers try and automate Edit And View forms
 
 ## Sample Project, Code and Demo Site
 
-The repository for the articles has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
+The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  All previous repos are obselete and will be removed shortly.
 
-There's a SQL script in /SQL in the repository for building the database.  The application can use either a real SQL database or an in-memory SQLite database.
+There's a SQL script in /SQL in the repository for building the database.
 
-[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
+The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/).
 
 The List Form
 ![Weather Forecast Viewer](/siteimages/Articles/Database/FetchData-List.png)

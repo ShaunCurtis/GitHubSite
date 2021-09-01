@@ -10,7 +10,7 @@ published: 2020-10-23
 
 ## Overview
 
-For a web based SPA [Single Page Application] to look like a real application it needs a modal dialog framework.  This article shows how to build a modal dialog container for Blazor `IComponents`.
+If a web based SPA [Single Page Application] is goinfg to look like a a real application it needs a modal dialog framework.  This article shows how to build a modal dialog container for Blazor `IComponents`.
 
 ## Code and Examples
 
@@ -34,34 +34,40 @@ There are three classes, one interface and one Enum:
 `IModalDialog` defines an interface that all modal dialogs must implementation.
 
 ```csharp
-public interface IModalDialog
+namespace Blazr.Modal
 {
-    ModalOptions Options { get; set; }
+    public interface IModalDialog
+    {
+        ModalOptions Options { get; set; }
 
-    //  Method to display a Modal Dialog
-    Task<ModalResult> ShowAsync<TModal>(ModalOptions options) where TModal : IComponent;
+        //  Method to display a Modal Dialog
+        Task<ModalResult> ShowAsync<TModal>(ModalOptions options) where TModal : IComponent;
 
-    // Method to update the Modal Dialog during display
-    void Update(ModalOptions options = null);
+        // Method to update the Modal Dialog during display
+        void Update(ModalOptions options = null);
 
-    // Method to dismiss - normally called by the dismiss button in the header bar
-    void Dismiss();
+        // Method to dismiss - normally called by the dismiss button in the header bar
+        void Dismiss();
 
-    // Method to close the dialog - normally called by the child component TModal
-    void Close(ModalResult result);
+        // Method to close the dialog - normally called by the child component TModal
+        void Close(ModalResult result);
+    }
 }
 ```
 
 ### ModalResultType
 
 ```csharp
-// Defines the types for exiting the dialog
-public enum ModalResultType
+namespace Blazr.Modal
 {
-    NoSet,
-    OK,
-    Cancel,
-    Exit
+    // Defines the types for exiting the dialog
+    public enum ModalResultType
+    {
+        NoSet,
+        OK,
+        Cancel,
+        Exit
+    }
 }
 ```
 
@@ -70,27 +76,30 @@ public enum ModalResultType
 `ModalResult` is passed back to the `Show` caller as the `Task` completion result when the modal closes.
 
 ```csharp
-public class ModalResult
+namespace Blazr.Modal
 {
-    // The closing type
-    public BootstrapModalResultType ResultType { get; private set; } = ModalResultType.NoSet;
+    public class ModalResult
+    {
+        // The closing type
+        public BootstrapModalResultType ResultType { get; private set; } = ModalResultType.NoSet;
 
-    // Whatever object you wish to pass back
-    public object Data { get; set; } = null;
+        // Whatever object you wish to pass back
+        public object Data { get; set; } = null;
 
-    // A set of static methods to build a BootstrapModalResult
+        // A set of static methods to build a BootstrapModalResult
 
-    public static ModalResult OK() => new ModalResult() {ResultType = ModalResultType.OK };
+        public static ModalResult OK() => new ModalResult() {ResultType = ModalResultType.OK };
 
-    public static ModalResult Exit() => new ModalResult() {ResultType = ModalResultType.Exit};
+        public static ModalResult Exit() => new ModalResult() {ResultType = ModalResultType.Exit};
 
-    public static ModalResult Cancel() => new ModalResult() {ResultType = ModalResultType.Cancel };
+        public static ModalResult Cancel() => new ModalResult() {ResultType = ModalResultType.Cancel };
 
-    public static ModalResult OK(object data) => new ModalResult() { Data = data, ResultType = ModalResultType.OK };
+        public static ModalResult OK(object data) => new ModalResult() { Data = data, ResultType = ModalResultType.OK };
 
-    public static ModalResult Exit(object data) => new ModalResult() { Data = data, ResultType = ModalResultType.Exit };
+        public static ModalResult Exit(object data) => new ModalResult() { Data = data, ResultType = ModalResultType.Exit };
 
-    public static ModalResult Cancel(object data) => new ModalResult() { Data = data, ResultType = ModalResultType.Cancel };
+        public static ModalResult Cancel(object data) => new ModalResult() { Data = data, ResultType = ModalResultType.Cancel };
+    }
 }
 ```
 ### ModalOptions
@@ -98,58 +107,60 @@ public class ModalResult
 `ModalOptions` is an `IEnumerable` collection of options passed to the Modal Dialog class when opening the Dialog.
 
 ```csharp
-public class ModalOptions :IEnumerable<KeyValuePair<string, object>>
-{
-    /// <summary>
-    /// List of options
-    /// </summary>
-    public static readonly string __Width = "Width";
-    public static readonly string __ID = "ID";
-    public static readonly string __ExitOnBackGroundClick = "ExitOnBackGroundClick";
-
-    private Dictionary<string, object> Parameters { get; } = new Dictionary<string, object>();
-
-    public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+namespace Blazr.Modal
+{   public class ModalOptions :IEnumerable<KeyValuePair<string, object>>
     {
-        foreach (var item in Parameters)
-            yield return item;
-    }
+        /// <summary>
+        /// List of options
+        /// </summary>
+        public static readonly string __Width = "Width";
+        public static readonly string __ID = "ID";
+        public static readonly string __ExitOnBackGroundClick = "ExitOnBackGroundClick";
 
-    IEnumerator IEnumerable.GetEnumerator()
-        => this.GetEnumerator();
+        private Dictionary<string, object> Parameters { get; } = new Dictionary<string, object>();
 
-    public T Get<T>(string key)
-    {
-        if (this.Parameters.ContainsKey(key))
+        public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
         {
-            if (this.Parameters[key] is T t) return t;
+            foreach (var item in Parameters)
+                yield return item;
         }
-        return default;
-    }
 
-    public bool TryGet<T>(string key, out T value)
-    {
-        value = default;
-        if (this.Parameters.ContainsKey(key))
+        IEnumerator IEnumerable.GetEnumerator()
+            => this.GetEnumerator();
+
+        public T Get<T>(string key)
         {
-            if (this.Parameters[key] is T t)
+            if (this.Parameters.ContainsKey(key))
             {
-                value = t;
-                return true;
+                if (this.Parameters[key] is T t) return t;
             }
+            return default;
         }
-        return false;
-    }
 
-    public bool Set(string key, object value)
-    {
-        if (this.Parameters.ContainsKey(key))
+        public bool TryGet<T>(string key, out T value)
         {
-            this.Parameters[key] = value;
+            value = default;
+            if (this.Parameters.ContainsKey(key))
+            {
+                if (this.Parameters[key] is T t)
+                {
+                    value = t;
+                    return true;
+                }
+            }
             return false;
         }
-        this.Parameters.Add(key, value);
-        return true;
+
+        public bool Set(string key, object value)
+        {
+            if (this.Parameters.ContainsKey(key))
+            {
+                this.Parameters[key] = value;
+                return false;
+            }
+            this.Parameters.Add(key, value);
+            return true;
+        }
     }
 }
 ```
@@ -158,7 +169,7 @@ public class ModalOptions :IEnumerable<KeyValuePair<string, object>>
 The Razor Markup for `BaseModalDialog` implements the markup for a dialog.  A cascading value provides child form access to the `IModalDialog` instance. 
 
 ```csharp
-@namespace Blazor.SPA.Components
+@namespace Blazr.Modal
 @inherits ComponentBase
 @implements IModalDialog
 
@@ -181,98 +192,95 @@ Some key points:
 4. The component uses a `TaskCompletionSource` object to manage async behaviour and communicate task status to the caller.
 
 ```csharp
-public partial class BaseModalDialog : ComponentBase, IModalDialog
+namespace Blazr.Modal
 {
-    [Inject] private IJSRuntime _js { get; set; }
-
-    public ModalOptions Options { get; protected set; } = new ModalOptions();
-
-    public bool Display { get; protected set; }
-
-    public bool IsLocked { get; protected set; }
-
-    protected RenderFragment _Content { get; set; }
-
-    protected string Width => this.Options.TryGet<string>(ModalOptions.__Width, out string value) ? $"width:{value}" : string.Empty;
-
-    protected bool ExitOnBackGroundClick => this.Options.TryGet<bool>(ModalOptions.__ExitOnBackGroundClick, out bool value) ? value : false;
-
-    protected TaskCompletionSource<ModalResult> _ModalTask { get; set; } = new TaskCompletionSource<ModalResult>();
-
-    public Task<ModalResult> ShowAsync<TModal>(ModalOptions options) where TModal : IComponent
+    public partial class BaseModalDialog : ComponentBase, IModalDialog
     {
-        this.Options = options ??= this.Options;
-        this._ModalTask = new TaskCompletionSource<ModalResult>();
-        this._Content = new RenderFragment(builder =>
+        [Inject] private IJSRuntime _js { get; set; }
+
+        public ModalOptions Options { get; protected set; } = new ModalOptions();
+
+        public bool Display { get; protected set; }
+
+        public bool IsLocked { get; protected set; }
+
+        protected RenderFragment _Content { get; set; }
+
+        protected string Width => this.Options.TryGet<string>(ModalOptions.__Width, out string value) ? $"width:{value}" : string.Empty;
+
+        protected bool ExitOnBackGroundClick => this.Options.TryGet<bool>(ModalOptions.__ExitOnBackGroundClick, out bool value) ? value : false;
+
+        protected TaskCompletionSource<ModalResult> _ModalTask { get; set; } = new TaskCompletionSource<ModalResult>();
+
+        public Task<ModalResult> ShowAsync<TModal>(ModalOptions options) where TModal : IComponent
         {
-            builder.OpenComponent(1, typeof(TModal));
-            builder.CloseComponent();
-        });
-        this.Display = true;
-        InvokeAsync(StateHasChanged);
-        return this._ModalTask.Task;
-    }
-
-    /// <summary>
-    /// Method to update the state of the display based on UIOptions
-    /// </summary>
-    /// <param name="options"></param>
-    public void Update(ModalOptions options = null)
-    {
-        this.Options = options ??= this.Options;
-        InvokeAsync(StateHasChanged);
-    }
-
-    /// <summary>
-    /// Method called by the dismiss button to close the dialog
-    /// sets the task to complete, show to false and renders the component (which hides it as show is false!)
-    /// </summary>
-    public async void Dismiss()
-    {
-        _ = this._ModalTask.TrySetResult(ModalResult.Cancel());
-        this.Display = false;
-        this._Content = null;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    /// <summary>
-    /// Method called by child components through the cascade value of this component
-    /// sets the task to complete, show to false and renders the component (which hides it as show is false!)
-    /// </summary>
-    /// <param name="result"></param>
-    public async void Close(ModalResult result)
-    {
-        _ = this._ModalTask.TrySetResult(result);
-        this.Display = false;
-        this._Content = null;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private void SetPageExitCheck(bool action)
-    {
-        _js.InvokeAsync<bool>("cecblazor_setEditorExitCheck", action);
-    }
-
-    public void Lock(bool setlock)
-    {
-        if (setlock && !this.IsLocked)
-        {
-            this.IsLocked = true;
-            this.SetPageExitCheck(true);
+            this.Options = options ??= this.Options;
+            this._ModalTask = new TaskCompletionSource<ModalResult>();
+            this._Content = new RenderFragment(builder =>
+            {
+                builder.OpenComponent(1, typeof(TModal));
+                builder.CloseComponent();
+            });
+            this.Display = true;
+            InvokeAsync(StateHasChanged);
+            return this._ModalTask.Task;
         }
-        else if (this.IsLocked && !setlock)
+
+        /// <summary>
+        /// Method to update the state of the display based on UIOptions
+        /// </summary>
+        /// <param name="options"></param>
+        public void Update(ModalOptions options = null)
         {
-            this.IsLocked = false;
-            this.SetPageExitCheck(false);
+            this.Options = options ??= this.Options;
+            InvokeAsync(StateHasChanged);
+        }
+
+        /// Method called by the dismiss button to close the dialog
+        /// sets the task to complete, show to false and renders the component (which hides it as show is false!)
+        public async void Dismiss()
+        {
+            _ = this._ModalTask.TrySetResult(ModalResult.Cancel());
+            this.Display = false;
+            this._Content = null;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        /// Method called by child components through the cascade value of this component
+        /// sets the task to complete, show to false and renders the component (which hides it as show is false!)
+        public async void Close(ModalResult result)
+        {
+            _ = this._ModalTask.TrySetResult(result);
+            this.Display = false;
+            this._Content = null;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        private void SetPageExitCheck(bool action)
+        {
+            _js.InvokeAsync<bool>("cecblazor_setEditorExitCheck", action);
+        }
+
+        public void Lock(bool setlock)
+        {
+            if (setlock && !this.IsLocked)
+            {
+                this.IsLocked = true;
+                this.SetPageExitCheck(true);
+            }
+            else if (this.IsLocked && !setlock)
+            {
+                this.IsLocked = false;
+                this.SetPageExitCheck(false);
+            }
+        }
+
+        private void OnBackClick(MouseEventArgs e)
+        {
+            if (ExitOnBackGroundClick && !IsLocked)
+                this.Close(ModalResult.Exit());
         }
     }
-
-    private void OnBackClick(MouseEventArgs e)
-    {
-        if (ExitOnBackGroundClick && !IsLocked)
-            this.Close(ModalResult.Exit());
-    }
-
 }
 ```
 Next we add some component Css as *BasModalDialog.razor.css*.
@@ -326,80 +334,60 @@ And add a reference to the SPA startup page - _Host.cshtml or index.html:
 
 ## Implementing Modals
 
-### The YesNoModal
+We will demonstrate using the modal dialog with two examples:
+1. Displaying the FetchData page in a modal dialog.
+2. A Pseudo editor page
 
-The `YesNoModal` is a simple "Are You Sure" modal form.
-1. It captures the cascaded parent `IModalDialog` object reference as `Modal`.
-2. It calls `Close` which calls `Modal.Close()` to hide the dialog. 
-3. It checks for a message parameter in `Modal.Options`.
+### Inital Setup
+
+1. Start with a standard Blazor Server template site.  
+2. Set up the five classes/interfaces/emuns above.
+3. Add the `Blazr.Dialog` namespace to `_Imports.razor`.
+
+### Modify FetchData
 
 ```html
-<div class="container">
-    <div class="p-3">
-        @((MarkupString)this.Message)
-    </div>
-    <div class="text-right p-2">
-        <button type="button" class="btn btn-danger" @onclick="(e => this.Close(true))">Exit</button>
-        <button type="button" class="btn btn-success" @onclick="(e => this.Close(false))">Cancel</button>
-    </div>
-</div>
-```
+@page "/fetchdata"
 
+.....
+
+    @if (this.isDialog)
+    {
+        <div class="text-right"> <button class="btn btn-dark" @onclick="Exit">Exit</button></div>
+    }
+}
+```
 ```csharp
-public partial class YesNo : ComponentBase
-{
-    [CascadingParameter]
-    public IModalDialog Modal { get; set; }
+@code {
 
-    [Parameter]
-    public string Message { get; set; } = "Are You Sure?";
+    [CascadingParameter] IModalDialog Dialog { get; set; }
 
-    protected override Task OnParametersSetAsync()
+    private bool isDialog => Dialog is not null;
+
+    private List<WeatherForecast> forecasts;
+
+    private void Exit()
     {
-        this.Modal.Options.TryGet<string>("Message", out string message);
-        if (!string.IsNullOrEmpty(message)) Message = message;
-        return Task.CompletedTask;
+        this.Dialog.Dismiss();
     }
-    public void Close(bool state)
-    {
-        if (state) this.Modal.Close(ModalResult.Exit());
-        else this.Modal.Close(ModalResult.Cancel());
-    }
+    .....
+}
 ```
 
+### Modify Index.razor
+
 ```html
-<div class="container">
-    <div class="p-3">
-        @((MarkupString)this.Message)
-    </div>
-    <div class="text-right p-2">
-        <button type="button" class="btn btn-danger" @onclick="(e => this.Close(true))">Exit</button>
-        <button type="button" class="btn btn-success" @onclick="(e => this.Close(false))">Cancel</button>
-    </div>
-</div>
+@page "/"
+
+<button class="btn btn-primary" @onclick="ShowModal">Show FetchData</button>
+<BaseModalDialog @ref="Dialog" />
 ```
+```csharp
+@code {
+    public IModalDialog Dialog { get; set; }
 
-Page showing modal:
-
-```html
-@page "/modal"
-
-<div>
-    <button class="btn btn-primary" @onclick="GetYesNo">Open</button>
-</div>
-<BaseModalDialog @ref="this.Modal"></BaseModalDialog>
-@code
-{
-    private BaseModalDialog Modal { get; set; }
-
-    private void GetYesNo(MouseEventArgs e)
-    {
-        var options = new ModalOptions();
-        options.Set("Message", "<h2>Hello There</h2>");
-        options.Set(ModalOptions.__Width, "30%");
-        Modal.ShowAsync<YesNo>(options);
-    }
-
+    private void ShowModal()
+        => Dialog.ShowAsync<FetchData>( new Blazr.Modal.ModalOptions());
 }
 ```
 
@@ -471,54 +459,6 @@ The test page:
         options.Set(ModalOptions.__ExitOnBackGroundClick, true);
         Modal.ShowAsync<PseudoEditor>(options);
     }
-}
-```
-
-### FetchData
-
-Finally the above two and opening `FetchData` in the same page.
-
-```html
-@page "/modal"
-
-<div class="m-2 p-2">
-    <button class="btn btn-primary" @onclick="GetYesNo">Open</button>
-</div>
-
-<div class="m-2 p-2">
-    <button class="btn btn-info" @onclick="GetEditor">Open Editor</button>
-</div>
-
-<div class="m-2 p-2">
-    <button class="btn btn-dark" @onclick="GetCounter">Get FetchData</button>
-</div>
-
-<BaseModalDialog @ref="this.Modal"></BaseModalDialog>
-@code
-{
-    private BaseModalDialog Modal { get; set; }
-
-    private void GetEditor(MouseEventArgs e)
-    {
-        var options = new ModalOptions();
-        options.Set(ModalOptions.__ExitOnBackGroundClick, true);
-        Modal.ShowAsync<PseudoEditor>(options);
-    }
-
-    private void GetYesNo(MouseEventArgs e)
-    {
-        var options = new ModalOptions();
-        options.Set("Message", "<h2>Hello There</h2>");
-        Modal.ShowAsync<YesNo>(options);
-    }
-
-    private void GetCounter(MouseEventArgs e)
-    {
-        var options = new ModalOptions();
-        options.Set(ModalOptions.__ExitOnBackGroundClick, true);
-        Modal.ShowAsync<FetchData>(options);
-    }
-
 }
 ```
 

@@ -25,11 +25,11 @@ This article is the fourth in a series on Building Blazor Database Applications.
 
 ## Repository and Database
 
-The repository for the articles has move to [CEC.Blazor.SPA Repository](https://github.com/ShaunCurtis/CEC.Blazor.SPA).  [CEC.Blazor GitHub Repository](https://github.com/ShaunCurtis/CEC.Blazor) is obselete and will be removed.
+The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  All previous repos are obselete and will be removed shortly.
 
 There's a SQL script in /SQL in the repository for building the database.
 
-[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
+The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/).
 
 ### Components
 

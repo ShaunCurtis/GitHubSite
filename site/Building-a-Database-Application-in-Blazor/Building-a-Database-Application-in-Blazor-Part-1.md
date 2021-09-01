@@ -45,7 +45,7 @@ The repository for the articles has moved to [Blazor.Database Repository](https:
 
 There's a SQL script in /SQL in the repository for building the database.
 
-The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-server.azurewebsites.net/).
+The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/).
 
 ## Design Philosophy
 
@@ -220,7 +220,7 @@ I use the following terminology thoughout these articles:
 3. Forms.  Forms are logical collections of controls that are either displayed in a view or a modal dialog.  Lists, view forms, edit forms are all classic forms. Forms contain controls not HTML.
 4. Controls.  Controls are components that display something: they emit HTML code to the Renderer.  For example, an edit box, a dropdown, button, ... A Form is a collection of controls.
 
-![UI Pipeline](/siteimages/articles/database/ui-pipeline.png)
+![UI Pipeline](/siteimages/Articles/Database/UI-Pipeline.png)
 
 ### Pages
 

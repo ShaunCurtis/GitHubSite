@@ -24,11 +24,11 @@ The articles in the series are:
 
 ## Repository and Database
 
-The repository has moved to [CEC.Database Repository](https://github.com/ShaunCurtis/CEC.Database).  You can use it as a template for developing your own applications.  Previous repositories are obselete and will be removed.
+The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  All previous repos are obselete and will be removed shortly.
 
 There's a SQL script in /SQL in the repository for building the database.
 
-[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
+The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/).
 
 ## Objective
 
@@ -62,18 +62,18 @@ There will be complications with certain entities, but that doesn't invalidate t
 
 ## Services
 
-Blazor is built on DI [Dependency Injection] and IOC [Inversion of Control] principles.  If you're unfamiliar with these concepts, do a little [backgound reading](https://www.codeproject.com/Articles/5274732/Dependency-Injection-and-IoC-Containers-in-Csharp) before diving into Blazor.  It'll save you time in the long run!
+Blazor uses DI [Dependency Injection] and IOC [Inversion of Control] principles.  If you're unfamiliar with these concepts, do a little [backgound reading](https://www.codeproject.com/Articles/5274732/Dependency-Injection-and-IoC-Containers-in-Csharp) before diving into Blazor.  It'll save you time in the long run!
 
 Blazor Singleton and Transient services are relatively straight forward.  You can read more about them in the [Microsoft Documentation](https://docs.microsoft.com/en-us/aspnet/core/blazor/fundamentals/dependency-injection).  Scoped are a little more complicated.
 
 1. A scoped service object exists for the lifetime of a client application session - note client and not server.  Any application resets, such as F5 or navigation away from the application, resets all scoped services.  A duplicated tab in a browser creates a new application, and a new set of scoped services.
-2. A scoped service can be restricted to an single object (normally a component) in code.  The `OwningComponentBase` component class restricts the life of a scoped service to the lifetime of the component.
+2. A scoped service can be restricted to an single object (normally a component) in code.  The `OwningComponentBase` component class restricts the life of a scoped service to the lifetime of that component.
 
-`Services` is the Blazor IOC [Inversion of Control] container. Service instances are declared:
-1. In Blazor Server in `Startup.cs` in `ConfigureServices`
-2. In Blazor WASM in `Program.cs`.
+`Services` is the Blazor IOC [Inversion of Control] container. Service instances are declared as follows:
+1. Blazor Server, in `Startup.cs` method `ConfigureServices`
+2. Blazor WASM in `Program.cs`.
 
-This solution uses a Service Collection extension methods such as `AddApplicationServices` to keep all the application specific services under one roof.
+This solution uses a set of Service Collection extension methods such as `AddInMemoryApplicationServices` to logically organise the solution services.
 
 ```csharp
 // Blazr.Database.Web/startup.cs
@@ -87,7 +87,7 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-Extensions are declared as a static extension methods in a static class.  The two methods are shown below.
+Extensions are declared as a static extension methods in a static class.  Various methods are shown below.
 
 ```csharp
 //Blazr.Database/Extensions/ServiceCollectionExtensions.cs
@@ -144,7 +144,7 @@ public static class ServiceCollectionExtensions
 }
 ```
 
- In the WASM project in `program.cs`:
+ The WASM project `program.cs` setup looks like this:
 
 ```csharp
 // program.cs
@@ -162,12 +162,12 @@ public static async Task Main(string[] args)
 Points:
 1. There's an `IServiceCollection` extension method for each project/library to encapsulate the specific services needed for the project.
 2. Only the data layer service is different.  The Server version, used by both the Blazor Server and the WASM API Server, interfaces with the database and Entity Framework.  It's scoped as a Singleton.
-3. Everything is async, using a `DbContextFactory` and manage `DbContext` instances as they are used.  The WASM Client version uses `HttpClient` (which is a scoped service) to make calls to the API and is therefore scoped.
+3. Everything is async, using a `DbContextFactory` and manage `DbContext` instances as they are used.  The WASM version uses `HttpClient` to make calls to the API.
 4. The *Brokers* and *Connectors* handle data requests through generics.  `TRecord` defines which dataset is retrieved and returned.
 
 ### Generics
 
-The factory library code relies heavily on Generics.  Two generic entities are defined:
+The boilerplate library code relies heavily on Generics.  Two generic entities are defined:
 1. `TRecord` represents a model record class.  It must be a class, implement `IDbRecord` and define an empty `new()`.  `TRecord` is used at the method level.
 2. `TEditRecord` represent a model edit class. It must be a class, implement `IEditRecord` and define an empty `new()`.  `TEditRecord` is used at the method level.
 3. `TDbContext` is the database context. It must inherit from the `DbContext` class.
@@ -187,7 +187,7 @@ public class ServerDataBroker<TDbContext> :
 ```
 ## Data Access
 
-Before diving into the detail, let's look at the main CRUDL methods we need to implement:
+Before diving into the detail, let's look at the main CRUD methods we implement:
 
 1. *SelectAllRecords* - get a List of records in the dataset.
 2. *SelectPagedRecords* - get a List of paged and sorted records in the dataset.
@@ -485,7 +485,7 @@ public class InMemoryWeatherDataStore : IInMemoryDataStore
 
 #### DbContextExtensions
 
-We're using generics, so our methods only know about `TRecord` and the `IDbRecord` interface.  We therefore need a methodology to get the correct `DbSet`.  We use either a naming convention, name the record, the DbSet and the Table/View the same, or declare the `DbSet` name in the record class through `GetDbSetName`.  We implement the method to get the `DbSet` as an extension method on `DbContext`.
+We're using generics, so our methods only know about `TRecord` and the `IDbRecord` interface.  We therefore need a methodology to get the correct `DbSet`.  We use either a naming convention - the name of the record, the DbSet and the Table/View is the same - or declare the `DbSet` name in the record class through `GetDbSetName`.  We implement the method to get the `DbSet` as an extension method on `DbContext`.
 
 The method uses reflection to find the `DbSet` for `TRecord`.
 
@@ -517,7 +517,7 @@ public static DbSet<TRecord> GetDbSet<TRecord>(this DbContext context) where TRe
 
 #### IDataBroker
 
-`IDataBroker` defines the base CRUDL methods DataServices must implement.  Brokers are services defined in the Services container using the interface and consumed through the interface.  Note `TRecord` and it's constraints is defined in each method, not a a class level.  `SelectPagedRecordsAsync` uses a `RecordPagingData` object which we'll look at in article 5.
+`IDataBroker` defines the base CRUD methods DataServices must implement.  Brokers are services defined in the Services container using the interface and consumed through the interface.  Note `TRecord` with it's constraints is defined at method level.  `SelectPagedRecordsAsync` uses a `RecordPagingData` object which we'll look at in article 5.
 
 ```csharp
     public interface IDataBroker
@@ -573,81 +573,106 @@ public static DbSet<TRecord> GetDbSet<TRecord>(this DbContext context) where TRe
 This is the concrete server-side implementation.  Each database operation is implemented using separate `DbContext` instances.  Note `GetDBSet` used to get the correct DBSet for `TRecord`.
 
 ```csharp
-public class SQLServerDataBroker<TDbContext> : BaseDataBroker, IDataBroker where TDbContext : DbContext
+public class SQLServerDataBroker<TDbContext> :
+    BaseDataBroker,
+    IDataBroker
+    where TDbContext : DbContext
 {
-
     protected virtual IDbContextFactory<TDbContext> DBContext { get; set; } = null;
 
-    public ServerDataBroker(IConfiguration configuration, IDbContextFactory<TDbContext> dbContext)
+    public SQLServerDataBroker(IConfiguration configuration, IDbContextFactory<TDbContext> dbContext)
         => this.DBContext = dbContext;
 
     public override async ValueTask<List<TRecord>> SelectAllRecordsAsync<TRecord>()
-        => await this.DBContext
-        .CreateDbContext()
-        .GetDbSet<TRecord>()
-        .ToListAsync() ?? new List<TRecord>();
-
-    public override async ValueTask<List<TRecord>> SelectPagedRecordsAsync<TRecord>(RecordPagingData paginatorData)
     {
-        var startpage = paginatorData.Page <= 1 ? 0 : (paginatorData.Page - 1) * paginatorData.PageSize;
-        var dbset = this.DBContext
-            .CreateDbContext()
+        using var dbContext = this.DBContext.CreateDbContext();
+        var list = await dbContext
+        .GetDbSet<TRecord>()
+        .ToListAsync() 
+        ?? new List<TRecord>();
+        return list;
+    }
+
+    public override async ValueTask<List<TRecord>> SelectPagedRecordsAsync<TRecord>(RecordPagingData pagingData)
+    {
+        using var dbContext = this.DBContext.CreateDbContext();
+        var dbset = dbContext
             .GetDbSet<TRecord>();
-        var isSortable = typeof(TRecord).GetProperty(paginatorData.SortColumn) != null;
-        if (isSortable)
+
+        var isSortable = typeof(TRecord).GetProperty(pagingData.SortColumn) != null;
+        List<TRecord> list;
+        if (pagingData.Sort && isSortable)
         {
-            var list = await dbset
-                .OrderBy(paginatorData.SortDescending ? $"{paginatorData.SortColumn} descending" : paginatorData.SortColumn)
-                .Skip(startpage)
-                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
-            return list;
+            list = await dbset
+                .OrderBy(pagingData.SortDescending ? $"{pagingData.SortColumn} descending" : pagingData.SortColumn)
+                .Skip(pagingData.StartRecord)
+                .Take(pagingData.PageSize)
+                .ToListAsync() 
+                ?? new List<TRecord>();
         }
         else
         {
-            var list = await dbset
-                .Skip(startpage)
-                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
-            return list;
+            list = await dbset
+                .Skip(pagingData.StartRecord)
+                .Take(pagingData.PageSize)
+                .ToListAsync() 
+                ?? new List<TRecord>();
         }
+        return list;
     }
 
     public override async ValueTask<TRecord> SelectRecordAsync<TRecord>(Guid id)
-        => await this.DBContext.
-            CreateDbContext().
-            GetDbSet<TRecord>().
-            FirstOrDefaultAsync(item => ((IDbRecord<TRecord>)item).ID == id) ?? default;
+    {
+        using var dbContext = this.DBContext.CreateDbContext();
+        var list = await dbContext
+            .GetDbSet<TRecord>()
+            .FirstOrDefaultAsync(item => ((IDbRecord<TRecord>)item).ID == id) ?? default;
+
+        return list;
+    }
 
     public override async ValueTask<int> SelectRecordListCountAsync<TRecord>()
-        => await this.DBContext.CreateDbContext().GetDbSet<TRecord>().CountAsync();
+    {
+        using var dbContext = this.DBContext.CreateDbContext();
+        var count = await dbContext
+            .GetDbSet<TRecord>()
+            .CountAsync();
+
+        return count;
+    }
 
     public override async ValueTask<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record)
     {
-        var context = this.DBContext.CreateDbContext();
+        using var context = this.DBContext.CreateDbContext();
         context.Entry(record).State = EntityState.Modified;
-        return await this.UpdateContext(context);
+        var result = await this.UpdateContext(context);
+        return result;
     }
 
     public override async ValueTask<DbTaskResult> InsertRecordAsync<TRecord>(TRecord record)
     {
-        var context = this.DBContext.CreateDbContext();
+        using var context = this.DBContext.CreateDbContext();
         context.GetDbSet<TRecord>().Add(record);
-        return await this.UpdateContext(context);
+        var result = await this.UpdateContext(context);
+        return result;
     }
 
     public override async ValueTask<DbTaskResult> DeleteRecordAsync<TRecord>(TRecord record)
     {
-        var context = this.DBContext.CreateDbContext();
+        using var context = this.DBContext.CreateDbContext();
         context.Entry(record).State = EntityState.Deleted;
-        return await this.UpdateContext(context);
+        var result = await this.UpdateContext(context);
+        return result;
     }
 
+    /// Helper method to update the context and return a DBTaskResult
     protected async Task<DbTaskResult> UpdateContext(DbContext context)
         => await context.SaveChangesAsync() > 0 ? DbTaskResult.OK() : DbTaskResult.NotOK();
 }
 ```
 #### SQLiteDataBroker
 
-This is the concrete server-side implementation.  All database operations use a single `DbContext` instances.  Note `GetDBSet` used to get the correct DBSet for `TRecord`.
+This is the concrete server-side implementation.  All database operations use a single `DbContext` instances.  Note `GetDBSet` gets the correct DBSet for `TRecord`.
 
 ```csharp
 public class SQLiteDataBroker<TDbContext> :
@@ -675,24 +700,21 @@ public class SQLiteDataBroker<TDbContext> :
 
     public override async ValueTask<List<TRecord>> SelectPagedRecordsAsync<TRecord>(RecordPagingData paginatorData)
     {
-        var startpage = paginatorData.Page <= 1
-            ? 0
-            : (paginatorData.Page - 1) * paginatorData.PageSize;
         var dbset = _dbContext.GetDbSet<TRecord>();
-        var isSortable = typeof(TRecord).GetProperty(paginatorData.SortColumn) != null;
-        if (isSortable)
+        var isSortable = typeof(TRecord).GetProperty(pagingData.SortColumn) != null;
+        if (pagingData.Sort && isSortable)
         {
             var list = await dbset
-                .OrderBy(paginatorData.SortDescending ? $"{paginatorData.SortColumn} descending" : paginatorData.SortColumn)
-                .Skip(startpage)
-                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
+                .OrderBy(pagingData.SortDescending ? $"{pagingData.SortColumn} descending" : pagingData.SortColumn)
+                .Skip(pagingData.StartRecord)
+                .Take(pagingData.PageSize).ToListAsync() ?? new List<TRecord>();
             return list;
         }
         else
         {
             var list = await dbset
-                .Skip(startpage)
-                .Take(paginatorData.PageSize).ToListAsync() ?? new List<TRecord>();
+                .Skip(pagingData.StartRecord)
+                .Take(pagingData.PageSize).ToListAsync() ?? new List<TRecord>();
             return list;
         }
     }
@@ -738,74 +760,76 @@ public class SQLiteDataBroker<TDbContext> :
 This provides a datastore for demo sites and testing.
 
 ```csharp
-    public class InMemoryDataStoreBroker<TContext> :
-        BaseDataBroker,
-        IDataBroker
-        where TContext : IInMemoryDataStore
+public class InMemoryDataStoreBroker<TContext> :
+    BaseDataBroker,
+    IDataBroker
+    where TContext : IInMemoryDataStore
+{
+    protected virtual IInMemoryDataStore DataContext { get; set; } = null;
+
+    public InMemoryDataStoreBroker(IInMemoryDataStore dataContext)
+        => this.DataContext = dataContext;
+
+    public override ValueTask<List<TRecord>> SelectAllRecordsAsync<TRecord>()
+        => ValueTask.FromResult<List<TRecord>>(DataContext
+        .GetDataSet<TRecord>()
+        .ToList());
+
+    public override ValueTask<List<TRecord>> SelectPagedRecordsAsync<TRecord>(RecordPagingData paginatorData)
     {
-        protected virtual IInMemoryDataStore DataContext { get; set; } = null;
-
-        public InMemoryDataStoreBroker(IInMemoryDataStore dataContext)
-            => this.DataContext = dataContext;
-
-        public override ValueTask<List<TRecord>> SelectAllRecordsAsync<TRecord>()
-            => ValueTask.FromResult<List<TRecord>>(DataContext
+        var dbSet = DataContext
             .GetDataSet<TRecord>()
-            .ToList());
-
-        public override ValueTask<List<TRecord>> SelectPagedRecordsAsync<TRecord>(RecordPagingData paginatorData)
+            .ToList();
+        if (pagingData.Sort)
         {
-            var startpage = paginatorData.Page <= 1
-                ? 0
-                : (paginatorData.Page - 1) * paginatorData.PageSize;
-
-            var list = DataContext
-                .GetDataSet<TRecord>()
+            dbSet = dbSet
                 .AsQueryable()
-                .OrderBy(paginatorData.SortDescending ? $"{paginatorData.SortColumn} descending" : paginatorData.SortColumn)
-                .Skip(startpage)
-                .Take(paginatorData.PageSize)
+                .OrderBy(pagingData.SortDescending ? $"{pagingData.SortColumn} descending" : pagingData.SortColumn)
                 .ToList();
-            return ValueTask.FromResult<List<TRecord>>(list);
         }
-
-
-        public override ValueTask<TRecord> SelectRecordAsync<TRecord>(Guid id)
-            => ValueTask.FromResult<TRecord>(DataContext
-                .GetDataSet<TRecord>()
-                .FirstOrDefault(item => ((IDbRecord<TRecord>)item).ID == id));
-
-        public override ValueTask<int> SelectRecordListCountAsync<TRecord>()
-            => ValueTask.FromResult<int>(DataContext
-                .GetDataSet<TRecord>()
-                .Count());
-
-        public override ValueTask<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record)
-        {
-            var result = this.DataContext.GetDataSet<TRecord>().Update(record);
-            var dbResult = new DbTaskResult() { IsOK = result, Message = "Record Updated" };
-            return ValueTask.FromResult<DbTaskResult>(dbResult);
-        }
-
-        public override ValueTask<DbTaskResult> InsertRecordAsync<TRecord>(TRecord record)
-        {
-            var result = this.DataContext.GetDataSet<TRecord>().Insert(record);
-            var dbResult = new DbTaskResult() { IsOK = result, Message = "Record Added" };
-            return ValueTask.FromResult<DbTaskResult>(dbResult);
-        }
-
-        public override ValueTask<DbTaskResult> DeleteRecordAsync<TRecord>(TRecord record)
-        {
-            var result = this.DataContext.GetDataSet<TRecord>().Delete(record);
-            var dbResult = new DbTaskResult() { IsOK = result, Message = "Record Deleted" };
-            return ValueTask.FromResult<DbTaskResult>(dbResult);
-        }
+        return ValueTask.FromResult ( dbSet
+            .Skip(pagingData.StartRecord)
+            .Take(pagingData.PageSize)
+            .ToList()
+            );
     }
+
+    public override ValueTask<TRecord> SelectRecordAsync<TRecord>(Guid id)
+        => ValueTask.FromResult<TRecord>(DataContext
+            .GetDataSet<TRecord>()
+            .FirstOrDefault(item => ((IDbRecord<TRecord>)item).ID == id));
+
+    public override ValueTask<int> SelectRecordListCountAsync<TRecord>()
+        => ValueTask.FromResult<int>(DataContext
+            .GetDataSet<TRecord>()
+            .Count());
+
+    public override ValueTask<DbTaskResult> UpdateRecordAsync<TRecord>(TRecord record)
+    {
+        var result = this.DataContext.GetDataSet<TRecord>().Update(record);
+        var dbResult = new DbTaskResult() { IsOK = result, Message = "Record Updated" };
+        return ValueTask.FromResult<DbTaskResult>(dbResult);
+    }
+
+    public override ValueTask<DbTaskResult> InsertRecordAsync<TRecord>(TRecord record)
+    {
+        var result = this.DataContext.GetDataSet<TRecord>().Insert(record);
+        var dbResult = new DbTaskResult() { IsOK = result, Message = "Record Added" };
+        return ValueTask.FromResult<DbTaskResult>(dbResult);
+    }
+
+    public override ValueTask<DbTaskResult> DeleteRecordAsync<TRecord>(TRecord record)
+    {
+        var result = this.DataContext.GetDataSet<TRecord>().Delete(record);
+        var dbResult = new DbTaskResult() { IsOK = result, Message = "Record Deleted" };
+        return ValueTask.FromResult<DbTaskResult>(dbResult);
+    }
+}
 ```
 
 #### APIDataBroker
 
-The `APIDataBroker` looks a little different.  It implements the interface, but uses `HttpClient` to get/post to the API on the server.
+The `APIDataBroker` looks a little different.  It implements the interface, but uses `HttpClient` to get/post requests to the API on the server.
 
 The service map looks like this:
 
@@ -919,7 +943,7 @@ public class WeatherForecastController : ControllerBase
 ```
 ## Connector Services
 
-Connectors are the Core Domain interface to the Data Domain.  They talk to Brokers.  All the code resides in `ModelDataServiceConnector`.  The connectors are all part of the Core Domain.
+Connectors are the Core Domain interface to the Data Domain.  They talk to Brokers.  All the code resides in `ModelDataServiceConnector`.
 
 #### IDataServiceConnector
 
@@ -996,9 +1020,9 @@ public class WeatherDataServiceConnector : ModelDataServiceConnector
 
 ### View Services
 
-View Services are the classes that represent the application core logic.  The UI view uses view services to interact with data.  The key mindset is no data structures in the UI.  If the UI refers to some data, the data resides in a View Service, and the UI accesses that data through an interface.
+View Services are the classes that represent the application core logic.  The UI view uses view services to interact with data.  The key mindset is no data structures in the UI.  If the UI refers to some data, the data resides in a View Service, and the UI accesses that data through a view.
 
-In data driven applications View Services come in three flavours:
+In data driven applications View Services come in three basic flavours:
 
 1. *Model View Services* - these expose single base model data to the UI.
 2. *Compound Model Services* - these expose complex models built from base models.  An example would be a weather station and its associated daily weather station data.

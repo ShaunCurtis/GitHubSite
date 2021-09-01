@@ -27,11 +27,11 @@ This article looks in detail at building reusable List UI components and deployi
 
 ## Repository and Database
 
-The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  The older repositories are obselete and have been removed.
+The repository for the articles has moved to [Blazor.Database Repository](https://github.com/ShaunCurtis/Blazor.Database).  All previous repos are obselete and will be removed shortly.
 
 There's a SQL script in /SQL in the repository for building the database.
 
-[You can see the Server and WASM versions of the project running here on the same site](https://cec-blazor-database.azurewebsites.net/).
+The demo site has changed now the Server and WASM have been combined.  The site starts in Server mode - [https://cec-blazor-database.azurewebsites.net/](https://cec-blazor-database.azurewebsites.net/).
 
 ## List Functionality
 
